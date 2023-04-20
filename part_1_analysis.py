@@ -6,7 +6,7 @@ from utils.best_plot import find_best_plot_ten_expoent
 
 from matplotlib import pyplot as plt
 
-def plot_all_variables_with_step(h, vec_func):
+def plot_all_variables_with_step(h, vec_func, additional_title = ""):
     init_x = np.array([0, 0, 0.09, 0])
 
     (t_vec, x_matrix) = rk_4_solve(vec_func, init_x, 0, h, 4)
@@ -22,7 +22,7 @@ def plot_all_variables_with_step(h, vec_func):
 
     plt.legend()
     plt.xlabel("t (s)")
-    plt.title(r'Valores de $x$, $\dot{x}$ e $\ddot{x}$ calculados com passo $h = ' + str(h) + r'$')
+    plt.title(r'Valores de $x$, $\dot{x}$ e $\ddot{x}$ calculados com passo $h = ' + str(h) + r'$ ' + additional_title)
 
     plt.figure()
 
@@ -36,7 +36,7 @@ def plot_all_variables_with_step(h, vec_func):
 
     plt.legend()
     plt.xlabel("t (s)")
-    plt.title(r'Valores de $\theta$, $\dot{\theta}$ e $\ddot{\theta}$ calculados com passo $h = ' + str(h) + r'$')
+    plt.title(r'Valores de $\theta$, $\dot{\theta}$ e $\ddot{\theta}$ calculados com passo $h = ' + str(h) + r'$ ' + additional_title)
 
 def plot_just_x_with_step(h, vec_func):
     init_x = np.array([0, 0, 0.09, 0])
@@ -47,11 +47,65 @@ def plot_just_x_with_step(h, vec_func):
     plt.xlabel("t (s)")
     plt.ylabel("x (mm)")
 
-car_function_gen = CarVecFunctionGenerator(c1 = 10**3, c2=10**3)
+car_function_gen = CarVecFunctionGenerator()
 
 vec_func = car_function_gen.car_vec_func
 
 plot_all_variables_with_step(0.0001, vec_func)
-
-print(f"Amplitude is {car_function_gen.A*1000} mm")
 plt.show()
+plt.figure()
+plot_all_variables_with_step(0.001, vec_func)
+plt.show()
+plt.figure()
+plot_all_variables_with_step(0.01, vec_func)
+plt.show()
+plt.figure()
+
+step = 0.0001
+car_function_gen = CarVecFunctionGenerator(V=30)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$V = 30 \frac{km}{h}$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(V=70)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$V = 70 \frac{km}{h}$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(c1 = 10**3, c2=10**3)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$c_1 = c_2 = 10^3$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(c1 = 5 * 10**6, c2=5 * 10**6)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$c_1 = c_2 = 5.10^6$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(c1 = 2.5 * 10**5, c2=2.5 * 10**5)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$c_1 = c_2 = 2{,}5.10^5$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(k1 = 2 * 10**4, k2=2 * 10**4)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$k_1 = k_2 = 2.10^4$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(k1 = 5 * 10**6, k2=5 * 10**6)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$k_1 = k_2 = 5.10^6$')
+plt.show()
+plt.figure()
+
+car_function_gen = CarVecFunctionGenerator(k1 = 7 * 10**8, k2=7 * 10**8)
+car_vec_func = car_function_gen.car_vec_func
+plot_all_variables_with_step(step, car_vec_func, r'$k_1 = k_2 = 7.10^8$')
+plt.show()
+
