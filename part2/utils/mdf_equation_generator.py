@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
 
 class MdfPsiEquationGenerator:
     def __init__(
@@ -28,9 +29,10 @@ class MdfPsiEquationGenerator:
         self.j_index_matrix = np.tile(np.arange(self.num_columns), (self.num_rows,1))
 
     def generate_initial_psi_matrix(self):
-        return np.ones((self.num_rows, self.num_columns))*70
+        return np.ones((self.num_rows, self.num_columns))*50
 
     def psi_vec_function(self, psi_matrix):
+        psi_matrix = np.copy(psi_matrix)
 
         # define mask matrices to regions with diferent equations
         left_border = self.i_index_matrix == 0
@@ -94,6 +96,7 @@ class MdfPsiEquationGenerator:
             inside_circle | top_left_border | top_right_border | bottom_left_border | bottom_right_border
         )
 
+        # Define neighbor matrices
         left_neighbors = np.vstack((np.full(self.num_columns, np.nan), psi_matrix[:-1]))
         right_neighbors = np.vstack((psi_matrix[1:], np.full(self.num_columns, np.nan)))
         top_neighbors = np.hstack((psi_matrix[:,1:], np.full((self.num_rows, 1), np.nan)))
@@ -156,15 +159,39 @@ class MdfPsiEquationGenerator:
             bottom_right_border, 
             bottom_left_border, 
             psi_matrix,
-            left_border,
-            right_border,
+            left_neighbors,
+            right_neighbors,
             top_neighbors,
             bottom_neighbors
             ):
         psi_matrix[bottom_left_border] = 0
         psi_matrix[bottom_right_border] = 0
-        psi_matrix[top_left_border] = 0
-        psi_matrix[top_right_border] = 0
+
+        k = (self.y_size - self.j_index_matrix[top_left_border]*self.delta)[0]
+        psi_matrix[top_left_border] = (
+            (
+                2*right_neighbors[top_left_border] 
+                + 
+                (
+                    bottom_neighbors[top_left_border] + 
+                    self.delta*self.V
+                ) / (k + 1/2)
+            )
+            /
+            (2 + 1 / (k + 1/2))
+        )
+        psi_matrix[top_right_border] = (
+            (
+                2*left_neighbors[top_right_border] 
+                + 
+                (
+                    bottom_neighbors[top_left_border] + 
+                    self.delta*self.V
+                ) / (k + 1/2)
+            )
+            /
+            (2 + 1 / (k + 1/2))
+        )
 
     def __proccess_circle_bottom_border(self, circle_bottom_border, psi_matrix, right_neighbors, left_neighbors, bottom_neighbors):
         a = ((self.h - self.j_index_matrix*self.delta) / self.delta)[circle_bottom_border]
