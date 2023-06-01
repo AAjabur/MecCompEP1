@@ -122,10 +122,34 @@ class MdfPsiEquationGenerator:
             self.__proccess_regular_points(psi_matrix, i, j)
 
     def __process_top_left_border(self, psi_matrix, i, j):
-        ...
+        k = (self.y_size - self.j_index_matrix[i, j]*self.delta)
+        psi_matrix[i, j] = (
+            (
+                2*psi_matrix[i+1, j] 
+                + 
+                (
+                    psi_matrix[i, j-1] + 
+                    self.delta*self.V
+                ) / (k + 1/2)
+            )
+            /
+            (2 + 1 / (k + 1/2))
+        )
 
     def __process_top_right_border(self, psi_matrix, i, j):
-        ...
+        k = (self.y_size - self.j_index_matrix[i, j]*self.delta)
+        psi_matrix[i,j] = (
+            (
+                2*psi_matrix[i-1, j] 
+                + 
+                (
+                    psi_matrix[i, j-1] + 
+                    self.delta*self.V
+                ) / (k + 1/2)
+            )
+            /
+            (2 + 1 / (k + 1/2))
+        )
 
     def __proccess_left_border(self, psi_matrix, i, j):
         psi_matrix[i, j] =  (

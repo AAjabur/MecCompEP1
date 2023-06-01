@@ -3,7 +3,13 @@ from utils.mdf_equation_generator import MdfPsiEquationGenerator
 import matplotlib.pyplot as plt
 import numpy as np
 
-psi_eq_gen = MdfPsiEquationGenerator(delta=0.1)
+def psi_to_velocity(psi):
+    x_velocity = np.zeros_like(psi[1:-1, 1:-1])
+    y_velocity = np.zeros_like(psi[1:-1, 1:-1])
+
+    x_velocity = psi[:,]
+
+psi_eq_gen = MdfPsiEquationGenerator(delta=0.05)
 
 x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
 y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
