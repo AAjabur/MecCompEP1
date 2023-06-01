@@ -176,47 +176,6 @@ class MdfPsiEquationGenerator:
             psi_matrix[i-1, j] + psi_matrix[i+1, j] + (psi_matrix[i, j-1] + self.V*self.delta)/(k + 1/2)
         ) / (2 + 1 / (k+1/2))
 
-    def __proccess_vertices(
-            self,
-            top_left_border, 
-            top_right_border, 
-            bottom_right_border, 
-            bottom_left_border, 
-            psi_matrix,
-            left_neighbors,
-            right_neighbors,
-            top_neighbors,
-            bottom_neighbors
-            ):
-        psi_matrix[bottom_left_border] = 0
-        psi_matrix[bottom_right_border] = 0
-
-        k = (self.y_size - self.j_index_matrix[top_left_border]*self.delta)[0]
-        psi_matrix[top_left_border] = (
-            (
-                2*right_neighbors[top_left_border] 
-                + 
-                (
-                    bottom_neighbors[top_left_border] + 
-                    self.delta*self.V
-                ) / (k + 1/2)
-            )
-            /
-            (2 + 1 / (k + 1/2))
-        )
-        psi_matrix[top_right_border] = (
-            (
-                2*left_neighbors[top_right_border] 
-                + 
-                (
-                    bottom_neighbors[top_left_border] + 
-                    self.delta*self.V
-                ) / (k + 1/2)
-            )
-            /
-            (2 + 1 / (k + 1/2))
-        )
-
     def __proccess_circle_bottom_border(self, psi_matrix, i, j):
         a = ((self.h - self.j_index_matrix[i, j]*self.delta) / self.delta)
         psi_matrix[i, j] = (
@@ -299,6 +258,9 @@ class MdfPsiEquationGenerator:
                 (b*(1+b))
             ) / (2 + 2/b)
 
+        else:
+            self.__proccess_regular_points(psi_matrix, i, j)
+
     def __process_left_circle_border(self, psi_matrix, i, j):
         g = (
             self.d 
@@ -360,6 +322,9 @@ class MdfPsiEquationGenerator:
                 /
                 (b*(1+b))
             ) / (2 + 2/b)
+
+        else:
+            self.__proccess_regular_points(psi_matrix, i, j)
 
     def __proccess_regular_points(self, psi_matrix, i, j):
         psi_matrix[i, j] = (
