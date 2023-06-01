@@ -3,7 +3,7 @@ from utils.mdf_equation_generator import MdfPsiEquationGenerator
 import matplotlib.pyplot as plt
 import numpy as np
 
-delta = 0.1
+delta = 0.02
 psi_eq_gen = MdfPsiEquationGenerator(delta)
 
 x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
