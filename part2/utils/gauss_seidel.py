@@ -2,7 +2,7 @@ import numpy as np
 from typing import Callable
 
 def relaxation_gauss_seidel(
-        func_matrix: Callable[[np.array], np.array],
+        func_iterator,
         initial_guess: np.array,
         relaxation: float = 1.15,
         goal_relative_error: float = 0.01,
@@ -12,18 +12,19 @@ def relaxation_gauss_seidel(
     iteration = 0
 
     while relative_error > goal_relative_error:
+        before_iteration = np.copy(approx_result)
+        for i in range(len(initial_guess)):
+            for j in range(len(initial_guess[0])):
+                last_approx_result = np.copy(approx_result)
+
+                func_iterator(i, j, approx_result)
+                approx_result[i,j] = relaxation*approx_result[i,j] + (1-relaxation)*last_approx_result[i,j]
+    
         iteration += 1
-        last_approx_result = np.copy(approx_result)
-        approx_result = relaxation * func_matrix(approx_result) + (1 - relaxation)*last_approx_result
 
-        relative_error = np.nanmax(abs(approx_result - last_approx_result))
+        relative_error = np.nanmax(np.abs(before_iteration - approx_result))
+        print(relative_error)
 
-        if iteration % 1000 == 0:
-            print(iteration)
-            print(relative_error)
-        if iteration > 100000000:
-            print("No convergence")
-            return approx_result
     
     print(f"Gauss seidel completed in {iteration} iterations")
 
