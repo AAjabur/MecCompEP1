@@ -3,8 +3,8 @@ from utils.mdf_equation_generator import MdfPsiEquationGenerator
 import matplotlib.pyplot as plt
 import numpy as np
 
-delta = 0.02
-psi_eq_gen = MdfPsiEquationGenerator(delta)
+delta = 0.04
+psi_eq_gen = MdfPsiEquationGenerator(delta, h=0.05)
 
 x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
 y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
@@ -15,4 +15,4 @@ iterate_func = psi_eq_gen.iterate_psi
 
 psi_matrix = relaxation_gauss_seidel(iterate_func, init_psi_guess, goal_relative_error=0.01)
 
-np.save("psi_matrix.npy", psi_matrix)
+np.save("psi_matrices/h005delta004.npy", psi_matrix)
