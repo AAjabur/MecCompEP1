@@ -7,23 +7,54 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-psi_matrices_options_deltas = {
-    "002step_regular.npy": 0.02,
-    "h01delta004.npy": 0.04,
-    "h005delta004.npy": 0.04,
-    "h02delta004.npy": 0.04,
-    "h0025delta005.npy": 0.05,
-    "V75delta005.npy": 0.05,
-    "V140delta005.npy": 0.05,
-    "V140h02delta005.npy": 0.05
+# Dict to save the parameters of each saved psi_matrix
+psi_matrices_options_parameters = {
+    "002step_regular.npy": {
+        "delta": 0.02
+    },
+    "h01delta004.npy": {
+        "delta": 0.04,
+        "h": 0.01
+    },
+    "h005delta004.npy": {
+        "delta": 0.04,
+        "h": 0.05
+    },
+    "h02delta004.npy": {
+        "delta": 0.04,
+        "h": 0.2
+    },
+    "h0025delta005.npy": {
+        "delta": 0.05,
+        "h": 0.025
+    },
+    "V75delta005.npy": {
+        "delta": 0.05,
+        "V": 75
+    },
+    "V140delta005.npy": {
+        "delta": 0.05,
+        "V": 140
+    },
+    "V140h02delta005.npy": {
+        "delta": 0.05,
+        "h": 0.2,
+        "V": 140
+    },
+    "delta002h01.npy": {
+        "delta": 0.04,
+        "V": 200,
+        "h": 0.2
+    }
 }
 
 text = ""
 iterations = 1
 
-matrix_option_files = os.listdir("psi_matrices")
+# just to help the user to select a pre processed psi matrix
+matrix_option_files = os.listdir("test")
 for matrix_option in matrix_option_files:
-    if os.path.isfile(os.path.join("psi_matrices", matrix_option)):
+    if os.path.isfile(os.path.join("test", matrix_option)):
         text += f"{iterations}: {matrix_option} \n"
         iterations += 1
 
@@ -32,13 +63,13 @@ matrix_file = matrix_option_files[matrix_file_number_choice-1]
 
 print(f"Você escolheu o arquivo {matrix_file}")
 
-delta = psi_matrices_options_deltas[matrix_file]
-psi_eq_gen = MdfPsiEquationGenerator(delta)
+# This object have all parameters of the problem to calculate psi
+psi_eq_gen = MdfPsiEquationGenerator(**psi_matrices_options_parameters[matrix_file])
 
 x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
 y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
 
-psi_matrix = np.load(f"psi_matrices/{matrix_file}")
+psi_matrix = np.load(f"test/{matrix_file}")
 
 fig, ax = plt.subplots(1,1)
 cp = ax.contour(x_matrix, y_matrix, psi_matrix, 20)
@@ -60,7 +91,7 @@ plt.show()
 PlotUtils.plot_quiver_decreasing_density(x_matrix, y_matrix, sub_equation_gen.x_velocity, sub_equation_gen.y_velocity, 500)
 plt.show()
 
-pressure = sub_equation_gen.rel_pressure
+pressure = sub_equation_gen.abs_pressure
 
 fig, ax = plt.subplots(1,1)
 heat_map = ax.contourf(x_matrix, y_matrix, pressure, 50, cmap="hot")

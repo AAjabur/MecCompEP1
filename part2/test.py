@@ -1,17 +1,7 @@
 import numpy as np
 
-a = np.array(
-    [[1, 2, 4, 4, 5],
-     [6, 7, 8, 9, 10],
-     [11, 12, 13, 14, 15],
-     [16, 17, 18, 19, 20],
-     [21,22,23,24,25]]
-)
-b = np.array(
-    [[False, False, False, False, False],
-     [False, True, False, False, False],
-     [False, False, True, True, False],
-     [False, False, False, False, False],
-     [True, False, False, False, False]]
-)
-print(a[b])
+def sum(a, b, c, d):
+    print(a+b+c+d)
+
+c = {"a": 1,"b": 2,"c": 3,"d": 4}
+sum(**c)

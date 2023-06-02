@@ -3,16 +3,41 @@ from utils.mdf_equation_generator import MdfPsiEquationGenerator
 import matplotlib.pyplot as plt
 import numpy as np
 
-delta = 0.04
-psi_eq_gen = MdfPsiEquationGenerator(delta, h=0.05)
+psi_matrices_options_parameters = {
+    "delta002h01.npy": {
+        "delta": 0.02,
+        "h": 0.1
+    },
+    "delta002h005.npy": {
+        "delta": 0.02,
+        "h": 0.05
+    },
+    "delta002h02.npy": {
+        "delta": 0.02,
+        "h": 0.2
+    },
+    "delta002h0025.npy": {
+        "delta": 0.02,
+        "h": 0.025
+    },
+    "delta002V75.npy": {
+        "delta": 0.02,
+        "V": 75
+    },
+    "delta002V140.npy": {
+        "delta": 0.02,
+        "V": 140
+    },
+}
 
-x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
-y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
+for file_name, matrix_params in psi_matrices_options_parameters.items():
+    psi_eq_gen = MdfPsiEquationGenerator(**matrix_params)
 
-init_psi_guess = psi_eq_gen.generate_initial_psi_matrix()
+    x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
+    y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
 
-iterate_func = psi_eq_gen.iterate_psi
+    init_psi_guess = psi_eq_gen.generate_initial_psi_matrix()
 
-psi_matrix = relaxation_gauss_seidel(iterate_func, init_psi_guess, goal_relative_error=0.01)
+    psi_matrix = relaxation_gauss_seidel(psi_eq_gen, init_psi_guess, relaxation=1.85)
 
-np.save("psi_matrices/h005delta004.npy", psi_matrix)
+    np.save(f"test/{file_name}", psi_matrix)

@@ -21,6 +21,8 @@ class PsiSubEquationsGenerator:
 
         self.x_velocity, self.y_velocity, self.velocity_module = self.__psi_to_velocity()
         self.abs_pressure, self.rel_pressure = self.__velocity_to_pressure()
+
+        # the accelerations will be used to estimate the pressures in the circle border
         acelerations = self.__velocity_to_aceleration()
         self.x_x_acel = acelerations[0]
         self.x_y_acel = acelerations[1]
@@ -34,11 +36,13 @@ class PsiSubEquationsGenerator:
     def __psi_to_velocity(self):
         num_rows, num_columns = self.psi_matrix.shape
 
+        # define matrices with the neighbors of each element, insert nan in the borders
         left_neighbors = np.vstack((np.full(num_columns, np.nan), self.psi_matrix[:-1]))[1:-1,1:-1]
         right_neighbors = np.vstack((self.psi_matrix[1:], np.full(num_columns, np.nan)))[1:-1,1:-1]
         top_neighbors = np.hstack((self.psi_matrix[:,1:], np.full((num_rows, 1), np.nan)))[1:-1,1:-1]
         bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.psi_matrix[:,:-1]))[1:-1,1:-1]
 
+        # using the second central difference
         x_velocity = (top_neighbors - bottom_neighbors)/(2*self.delta)
         y_velocity = -(right_neighbors - left_neighbors)/(2*self.delta)
 
@@ -82,31 +86,37 @@ class PsiSubEquationsGenerator:
         y_x_acel = (right_neighbors - left_neighbors)/(2*self.delta)
         y_y_acel = (top_neighbors - bottom_neighbors)/(2*self.delta)
 
-        y_x_acel
-
         return (x_x_acel, x_y_acel, y_x_acel, y_y_acel)
     
     def __pressure_on_circle_real_border(self):
-
         ################### Processing the circular part of the circle
+
+        # we must slice the matrices because the acceleration is sliced
         circle_border = self.psi_equation_gen.circle_border[2:-2, 2:-2]
         i_index_matrix = self.psi_equation_gen.i_index_matrix[2:-2, 2:-2]
         j_index_matrix = self.psi_equation_gen.j_index_matrix[2:-2, 2:-2]
 
+        # the coordinates of the points near the circle border
         circle_border_x_values = i_index_matrix[circle_border]*self.delta
         circle_border_y_values = j_index_matrix[circle_border]*self.delta
 
+        # the velocities of the points near the circle border
+        # again we use the slice so that the velocity matrix has the same size as the acceleration matrix
         circle_border_x_vel_values = self.x_velocity[1:-1, 1:-1][circle_border]
         circle_border_y_vel_values = self.y_velocity[1:-1, 1:-1][circle_border]
 
+        # the distance to the center of the circle and the angle to the center of the circle of each point
         circle_border_radius = np.sqrt((circle_border_x_values - self.psi_equation_gen.L/2 - self.psi_equation_gen.d)**2 + (circle_border_y_values - self.psi_equation_gen.h)**2)
         circle_border_angles = np.arctan2(circle_border_y_values - self.psi_equation_gen.h, circle_border_x_values - self.psi_equation_gen.d - self.psi_equation_gen.L/2)
 
+        # The differente between the distance to the center of the circle and the circle radius
         delta_radius = (circle_border_radius - self.psi_equation_gen.L/2)
 
+        # Now we can estimate the velocities in the circle border using the accelerations in the points near the circle border
         circle_real_border_x_vel = circle_border_x_vel_values - self.x_x_acel[circle_border] * delta_radius*np.cos(circle_border_angles) - self.x_y_acel[circle_border] * delta_radius*np.sin(circle_border_angles)
         circle_real_border_y_vel = circle_border_y_vel_values - self.y_x_acel[circle_border] * delta_radius*np.cos(circle_border_angles) - self.y_y_acel[circle_border] * delta_radius*np.sin(circle_border_angles)
 
+        # calculating the pressures in the circle border
         self.circle_real_border_pressures = (
             self.rho 
             * 
@@ -117,6 +127,8 @@ class PsiSubEquationsGenerator:
                 -
                 np.sqrt(circle_real_border_x_vel**2 + circle_real_border_y_vel**2) / 2
             )
+            +
+            101325
         )
 
         self.circle_real_border_x_values = circle_border_x_values - delta_radius*np.cos(circle_border_angles)
@@ -124,7 +136,10 @@ class PsiSubEquationsGenerator:
         self.circle_real_border_angles = circle_border_angles
 
         ################### Processing the bottom part of the circle
+
+        # now we repeat the process to the bottom of the circle
         circle_bottom_border = self.psi_equation_gen.circle_bottom_border[2:-2, 2:-2]
+        print(f"CIRCLE BOTTOM {np.count_nonzero(circle_bottom_border)}")
         i_index_matrix = self.psi_equation_gen.i_index_matrix[2:-2, 2:-2]
         j_index_matrix = self.psi_equation_gen.j_index_matrix[2:-2, 2:-2]
 
@@ -152,6 +167,8 @@ class PsiSubEquationsGenerator:
                 -
                 np.sqrt(circle_real_bottom_border_x_vel**2 + circle_real_bottom_border_y_vel**2) / 2
             )
+            +
+            101325
         )
 
         self.real_circle_x_values = np.concatenate((self.circle_real_border_x_values, self.circle_real_bottom_border_x_values))
@@ -159,22 +176,27 @@ class PsiSubEquationsGenerator:
         self.real_circle_pressures = np.concatenate((self.circle_real_border_pressures, self.circle_real_bottom_border_pressures))
 
     def __proccess_forces_on_circle(self):
-        self.circle_real_border_angles
-        self.circle_real_border_pressures
-
         sorted_angles = np.argsort(self.circle_real_border_angles)
 
         sorted_circle_pressures = np.copy(self.circle_real_border_pressures)[sorted_angles]
         sorted_pressure_angles = np.copy(self.circle_real_border_angles)[sorted_angles]
 
         mean_pressures = (sorted_circle_pressures[1:] + sorted_circle_pressures[:-1])/2
+        mean_angles = (sorted_pressure_angles[1:] + sorted_pressure_angles[:-1])/2
         delta_lenghts = (sorted_pressure_angles[1:] - sorted_pressure_angles[:-1])*self.psi_equation_gen.L/2
 
-        self.total_force_on_circle = np.sum(mean_pressures * delta_lenghts * self.fusca_width)
+        plt.plot(sorted_pressure_angles, sorted_circle_pressures)
+        plt.show()
+
+        self.total_force_on_circle = np.sum(mean_pressures * delta_lenghts * self.fusca_width * np.sin(mean_angles))
 
     def __proccess_forces_on_circle_bottom_border(self):
-        pressures_mean_values = (self.circle_real_bottom_border_pressures[1:] + self.circle_real_bottom_border_pressures[:-1])/2
-        delta_lengths = self.circle_real_bottom_border_x_values[1:] - self.circle_real_bottom_border_x_values[:-1]
+        sorted_x_values_indexes = np.argsort(self.circle_real_bottom_border_x_values)
+
+        sorted_pressures = self.circle_real_bottom_border_pressures[sorted_x_values_indexes]
+        sorted_x_values = self.circle_real_bottom_border_x_values[sorted_x_values_indexes]
+
+        pressures_mean_values = (sorted_pressures[1:] + sorted_pressures[:-1])/2
+        delta_lengths = sorted_x_values[1:] - sorted_x_values[:-1]
 
         self.total_forces_on_circle_bottom = np.sum(pressures_mean_values * delta_lengths * self.fusca_width)
-        

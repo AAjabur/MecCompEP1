@@ -11,6 +11,7 @@ class MdfPsiEquationGenerator:
         d = 1.5, # m
         H = 6, # m
     ):
+        # define atributes in SI
         self.delta = delta
         self.V = V / 3.6
         self.h = h
@@ -24,7 +25,9 @@ class MdfPsiEquationGenerator:
         self.num_rows = int(self.x_size / self.delta) + 1
         self.num_columns = int(self.y_size / self.delta) + 1
 
+        # matrix with the i index number of each element in the grid
         self.i_index_matrix = np.tile(np.arange(self.num_rows)[:, np.newaxis], (1, self.num_columns))
+        # matrix with the j index number of each element in the grid
         self.j_index_matrix = np.tile(np.arange(self.num_columns), (self.num_rows,1))
 
         # define mask matrices to regions with diferent equations
@@ -45,14 +48,15 @@ class MdfPsiEquationGenerator:
         self.top_border = top_border & (~(self.top_left_border | self.top_right_border))
         self.bottom_border = bottom_border & (~(self.bottom_left_border | self.bottom_right_border))
 
+        # define mask matrices to the bottom of the circle
         self.circle_bottom_border = (
             (self.h - self.j_index_matrix * self.delta < self.delta)
             &
-            (self.j_index_matrix * self.delta < self.h)
+            (self.j_index_matrix * self.delta <= self.h)
             &
             (self.i_index_matrix * self.delta > self.d)
             &
-            (self.i_index_matrix * self.delta < self.d + self.L)
+            (self.i_index_matrix * self.delta <= self.d + self.L)
         )
 
         distance_to_circle_center = (
@@ -63,6 +67,7 @@ class MdfPsiEquationGenerator:
             ) 
         )
 
+        # define mask matrix to the points near the border of the circle
         self.circle_border = (
             (
                 distance_to_circle_center
@@ -79,8 +84,10 @@ class MdfPsiEquationGenerator:
             )
         )
 
+        # mask matrix of the points inside the circle
         self.inside_circle = (distance_to_circle_center < self.L/2) & (self.j_index_matrix*self.delta > self.h)
 
+        # mask matrix of the regular points
         self.regular_points = ~(
             self.circle_border | self.circle_bottom_border | left_border 
             |
@@ -89,10 +96,16 @@ class MdfPsiEquationGenerator:
             self.inside_circle | self.top_left_border | self.top_right_border | self.bottom_left_border | self.bottom_right_border
         )
 
+    # Generate a initial guess of the values of psi
     def generate_initial_psi_matrix(self):
-        return np.ones((self.num_rows, self.num_columns))*107.5
+        psi_matrix = np.ones((self.num_rows, self.num_columns))*107.5
+        psi_matrix[self.inside_circle] = 0
+
+        return psi_matrix
     
     def iterate_psi(self, i, j, psi_matrix):
+
+        # depending on the position of the point, use different processing
         if self.circle_border[i, j]:
             self.__proccess_circle_border(psi_matrix, i, j)
         elif self.bottom_border[i, j]:
@@ -322,7 +335,7 @@ class MdfPsiEquationGenerator:
                 (b*(1+b))
             ) / (2 + 2/b)
 
-        else:
+        else: # not irregular, can process regularly
             self.__proccess_regular_points(psi_matrix, i, j)
 
     def __proccess_regular_points(self, psi_matrix, i, j):

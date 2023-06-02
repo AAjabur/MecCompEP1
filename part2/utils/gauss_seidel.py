@@ -1,30 +1,45 @@
 import numpy as np
 from typing import Callable
+from utils.mdf_equation_generator import MdfPsiEquationGenerator
 
 def relaxation_gauss_seidel(
-        func_iterator,
+        psi_eq_gen: MdfPsiEquationGenerator,
         initial_guess: np.array,
         relaxation: float = 1.15,
         goal_relative_error: float = 0.01,
     ):
+    func_iterator = psi_eq_gen.iterate_psi
+
     relative_error = 100
     approx_result = np.copy(initial_guess)
     iteration = 0
 
+    # Using the fact that the matrix must be symetric and the psi values inside the circle don't change
+    # we can make less iterations inside the for loop
+    points_to_iterate = (~psi_eq_gen.inside_circle) & (psi_eq_gen.i_index_matrix*psi_eq_gen.delta <= psi_eq_gen.x_size/2)
+    
+    i_values = psi_eq_gen.i_index_matrix[points_to_iterate]
+    j_values = psi_eq_gen.j_index_matrix[points_to_iterate]
+
+    num_rows = len(approx_result)
     while relative_error > goal_relative_error:
         before_iteration = np.copy(approx_result)
-        for i in range(len(initial_guess)):
-            for j in range(len(initial_guess[0])):
+        for i,j in zip(i_values, j_values):
                 last_approx_result = np.copy(approx_result)
 
                 func_iterator(i, j, approx_result)
                 approx_result[i,j] = relaxation*approx_result[i,j] + (1-relaxation)*last_approx_result[i,j]
-    
+
+
         iteration += 1
 
         relative_error = np.nanmax(np.abs(before_iteration - approx_result))
         print(relative_error)
 
+        if num_rows%2 == 0:
+            approx_result[int(num_rows/2):] = np.flip(approx_result[:int(num_rows/2)], axis=0)
+        else:
+            approx_result[int(num_rows/2)+1:] = np.flip(approx_result[:int(num_rows/2)], axis=0)
     
     print(f"Gauss seidel completed in {iteration} iterations")
 
