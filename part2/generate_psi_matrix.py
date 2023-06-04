@@ -4,10 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 psi_matrices_options_parameters = {
-    "delta002h01.npy": {
-        "delta": 0.02,
-        "h": 0.1
-    },
     "delta002h005.npy": {
         "delta": 0.02,
         "h": 0.05

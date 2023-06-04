@@ -56,7 +56,7 @@ class MdfPsiEquationGenerator:
             &
             (self.i_index_matrix * self.delta > self.d)
             &
-            (self.i_index_matrix * self.delta <= self.d + self.L)
+            (self.i_index_matrix * self.delta < self.d + self.L)
         )
 
         distance_to_circle_center = (
@@ -85,7 +85,7 @@ class MdfPsiEquationGenerator:
         )
 
         # mask matrix of the points inside the circle
-        self.inside_circle = (distance_to_circle_center < self.L/2) & (self.j_index_matrix*self.delta > self.h)
+        self.inside_circle = (distance_to_circle_center <= self.L/2) & (self.j_index_matrix*self.delta >= self.h)
 
         # mask matrix of the regular points
         self.regular_points = ~(

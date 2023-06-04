@@ -9,44 +9,28 @@ import os
 
 # Dict to save the parameters of each saved psi_matrix
 psi_matrices_options_parameters = {
-    "002step_regular.npy": {
-        "delta": 0.02
-    },
-    "h01delta004.npy": {
-        "delta": 0.04,
-        "h": 0.01
-    },
-    "h005delta004.npy": {
-        "delta": 0.04,
+    "delta002h005.npy": {
+        "delta": 0.02,
         "h": 0.05
     },
-    "h02delta004.npy": {
-        "delta": 0.04,
+    "delta002h02.npy": {
+        "delta": 0.02,
         "h": 0.2
     },
-    "h0025delta005.npy": {
-        "delta": 0.05,
+    "delta002h0025.npy": {
+        "delta": 0.02,
         "h": 0.025
     },
-    "V75delta005.npy": {
-        "delta": 0.05,
+    "delta002V75.npy": {
+        "delta": 0.02,
         "V": 75
     },
-    "V140delta005.npy": {
-        "delta": 0.05,
+    "delta002V140.npy": {
+        "delta": 0.02,
         "V": 140
     },
-    "V140h02delta005.npy": {
-        "delta": 0.05,
-        "h": 0.2,
-        "V": 140
-    },
-    "delta002h01.npy": {
-        "delta": 0.04,
-        "V": 200,
-        "h": 0.2
-    }
 }
+
 
 text = ""
 iterations = 1
@@ -66,6 +50,8 @@ print(f"Você escolheu o arquivo {matrix_file}")
 # This object have all parameters of the problem to calculate psi
 psi_eq_gen = MdfPsiEquationGenerator(**psi_matrices_options_parameters[matrix_file])
 
+print(np.count_nonzero(psi_eq_gen.bottom_border))
+
 x_matrix = psi_eq_gen.i_index_matrix*psi_eq_gen.delta
 y_matrix = psi_eq_gen.j_index_matrix*psi_eq_gen.delta
 
@@ -83,7 +69,7 @@ x_matrix = x_matrix[1:-1, 1:-1]
 y_matrix = y_matrix[1:-1, 1:-1]
 
 fig, ax = plt.subplots(1,1)
-cp = ax.contourf(x_matrix, y_matrix, sub_equation_gen.velocity_module, 50, cmap="hot")
+cp = ax.contourf(x_matrix, y_matrix, sub_equation_gen.velocity_module*3.6, 50, cmap="hot")
 fig.colorbar(cp)
 
 plt.show()
@@ -91,7 +77,7 @@ plt.show()
 PlotUtils.plot_quiver_decreasing_density(x_matrix, y_matrix, sub_equation_gen.x_velocity, sub_equation_gen.y_velocity, 500)
 plt.show()
 
-pressure = sub_equation_gen.abs_pressure
+pressure = sub_equation_gen.rel_pressure
 
 fig, ax = plt.subplots(1,1)
 heat_map = ax.contourf(x_matrix, y_matrix, pressure, 50, cmap="hot")
@@ -99,13 +85,13 @@ fig.colorbar(heat_map)
 plt.show()
 
 fig, ax = plt.subplots(1, 1)
-scatter_plot = ax.scatter(sub_equation_gen.real_circle_x_values, sub_equation_gen.real_circle_y_values, c=sub_equation_gen.real_circle_pressures, cmap="viridis")
+scatter_plot = ax.scatter(sub_equation_gen.real_circle_x_values, sub_equation_gen.real_circle_y_values, c=sub_equation_gen.real_circle_pressures - 101325, cmap="viridis")
 
 min_pressure_index = np.argmin(sub_equation_gen.real_circle_pressures)
 min_pressure_value = sub_equation_gen.real_circle_pressures[min_pressure_index]
 min_x = sub_equation_gen.real_circle_x_values[min_pressure_index]
 min_y = sub_equation_gen.real_circle_y_values[min_pressure_index]
-ax.annotate(f"Minimum pressure {round(min_pressure_value, 3)}", xy=(min_x, min_y), textcoords="offset points", xytext=(10,20), arrowprops={"arrowstyle":"-|>"})
+ax.annotate(f"Minimum pressure {round(min_pressure_value, 3)}", xy=(min_x, min_y), textcoords="offset points", xytext=(10,40), arrowprops={"arrowstyle":"-|>"})
 
 plt.colorbar(scatter_plot)
 
@@ -113,6 +99,6 @@ plt.show()
 
 print(f"Forças no circulo {sub_equation_gen.total_force_on_circle}")
 print(f"Forças embaixo {sub_equation_gen.total_forces_on_circle_bottom}")
-print(f"Forças totais {sub_equation_gen.total_forces_on_circle_bottom + sub_equation_gen.total_force_on_circle} N")
+print(f"Forças totais {sub_equation_gen.total_forces_on_circle_bottom - sub_equation_gen.total_force_on_circle} N")
 
 
