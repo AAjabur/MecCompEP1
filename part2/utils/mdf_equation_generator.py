@@ -348,5 +348,3 @@ class MdfPsiEquationGenerator:
             + 
             psi_matrix[i, j-1]
         ) / 4
-
-

@@ -1,5 +1,6 @@
-from utils.gauss_seidel import relaxation_gauss_seidel
+from utils.gauss_seidel import relaxation_gauss_seidel_temp
 from utils.mdf_equation_generator import MdfPsiEquationGenerator
+from utils.other_eq_gen import MdfTempEquationGenerator
 from utils.sub_equations_generator import PsiSubEquationsGenerator
 from utils.plot_utils import PlotUtils
 import matplotlib.gridspec as gridspec
@@ -30,7 +31,6 @@ psi_matrices_options_parameters = {
         "V": 140
     },
 }
-
 
 text = ""
 iterations = 1
@@ -65,9 +65,6 @@ plt.show()
 
 sub_equation_gen = PsiSubEquationsGenerator(psi_matrix, psi_eq_gen)
 
-x_matrix = x_matrix[1:-1, 1:-1]
-y_matrix = y_matrix[1:-1, 1:-1]
-
 fig, ax = plt.subplots(1,1)
 cp = ax.contourf(x_matrix, y_matrix, sub_equation_gen.velocity_module*3.6, 50, cmap="hot")
 fig.colorbar(cp)
@@ -100,5 +97,11 @@ plt.show()
 print(f"Forças no circulo {sub_equation_gen.total_force_on_circle}")
 print(f"Forças embaixo {sub_equation_gen.total_forces_on_circle_bottom}")
 print(f"Forças totais {sub_equation_gen.total_forces_on_circle_bottom - sub_equation_gen.total_force_on_circle} N")
+
+temp_eq_gen = MdfTempEquationGenerator(sub_equation_gen)
+
+initial_guess = temp_eq_gen.generate_initial_guess()
+
+relaxation_gauss_seidel_temp(temp_eq_gen, initial_guess, )
 
 

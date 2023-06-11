@@ -23,7 +23,7 @@ class PsiSubEquationsGenerator:
         self.abs_pressure, self.rel_pressure = self.__velocity_to_pressure()
 
         # the accelerations will be used to estimate the pressures in the circle border
-        acelerations = self.__velocity_to_aceleration()
+        acelerations = self.__psi_to_acceleration()
         self.x_x_acel = acelerations[0]
         self.x_y_acel = acelerations[1]
         self.y_x_acel = acelerations[2]
@@ -37,33 +37,135 @@ class PsiSubEquationsGenerator:
         num_rows, num_columns = self.psi_matrix.shape
 
         # define matrices with the neighbors of each element, insert nan in the borders
-        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.psi_matrix[:-1]))[1:-1,1:-1]
-        right_neighbors = np.vstack((self.psi_matrix[1:], np.full(num_columns, np.nan)))[1:-1,1:-1]
-        top_neighbors = np.hstack((self.psi_matrix[:,1:], np.full((num_rows, 1), np.nan)))[1:-1,1:-1]
-        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.psi_matrix[:,:-1]))[1:-1,1:-1]
-
-        # define matrices with the second neighbors of each element, insert nan in the borders
-        left_left_neighbors = np.vstack((np.full((2, num_columns), np.nan), self.psi_matrix[:-2]))[1:-1,1:-1]
-        right_right_neighbors = np.vstack((self.psi_matrix[2:], np.full((2, num_columns), np.nan)))[1:-1,1:-1]
-        top_top_neighbors = np.hstack((self.psi_matrix[:,2:], np.full((num_rows, 2), np.nan)))[1:-1,1:-1]
-        bottom_bottom_neighbors = np.hstack((np.full((num_rows, 2), np.nan), self.psi_matrix[:,:-2]))[1:-1,1:-1]
+        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.psi_matrix[:-1]))
+        right_neighbors = np.vstack((self.psi_matrix[1:], np.full(num_columns, np.nan)))
+        top_neighbors = np.hstack((self.psi_matrix[:,1:], np.full((num_rows, 1), np.nan)))
+        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.psi_matrix[:,:-1]))
 
         # using the second central difference
         x_velocity = (top_neighbors - bottom_neighbors)/(2*self.delta)
         y_velocity = -(right_neighbors - left_neighbors)/(2*self.delta)
 
-        left_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta <= self.psi_equation_gen.x_size/2))[1:-1,1:-1]
-        right_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta > self.psi_equation_gen.x_size/2))[1:-1,1:-1]
-        circle_bottom = self.psi_equation_gen.circle_bottom_border[1:-1,1:-1]
+        # Left and right border y velocities are zero
+        y_velocity[0, :] = 0
+        y_velocity[-1, :] = 0
 
-        # in the borders of the circle use the regressive difference because inside the circle is out of our domain
-        y_velocity[left_circle] = -(3*self.psi_matrix[1:-1,1:-1][left_circle] - 4*left_neighbors[left_circle] + left_left_neighbors[left_circle])/(2*self.delta)
-        x_velocity[left_circle] = (-3*self.psi_matrix[1:-1,1:-1][left_circle] + 4*top_neighbors[left_circle] - top_top_neighbors[left_circle])/(2*self.delta)
+        # Top border velocitie is V
+        x_velocity[:, -1] = self.psi_equation_gen.V
+    
+        # Use taylor on bottom border
+        x_velocity[:, 0] = top_neighbors[:, 0] / self.delta
 
-        y_velocity[right_circle] = -(-3*self.psi_matrix[1:-1,1:-1][right_circle] + 4*right_neighbors[right_circle] - right_right_neighbors[right_circle])/(2*self.delta)
-        x_velocity[right_circle] = (-3*self.psi_matrix[1:-1,1:-1][right_circle] + 4*top_neighbors[right_circle] - top_top_neighbors[right_circle])/(2*self.delta)
+        left_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta <= self.psi_equation_gen.x_size/2))
+        right_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta > self.psi_equation_gen.x_size/2))
+        circle_bottom = self.psi_equation_gen.circle_bottom_border
 
-        x_velocity[circle_bottom] = (3*self.psi_matrix[1:-1,1:-1][circle_bottom] - 4*bottom_neighbors[circle_bottom] + bottom_bottom_neighbors[circle_bottom])/(2*self.delta)
+        # in the borders of the circle use irregular contour of the first derivative
+
+        # For the left circle
+        b = (
+            self.psi_equation_gen.j_index_matrix[left_circle]*self.delta
+            -
+            self.psi_equation_gen.h
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2
+                -
+                (self.psi_equation_gen.d + self.psi_equation_gen.L/2 - self.psi_equation_gen.i_index_matrix[left_circle]*self.delta)**2
+            )
+        ) / self.delta
+        vertical_irregular = b < 1 # when b is NaN is not irregular
+        b = b[vertical_irregular]
+
+        g = (
+            self.psi_equation_gen.d 
+            + 
+            self.psi_equation_gen.L/2 
+            - 
+            self.psi_equation_gen.i_index_matrix[left_circle]*self.delta
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2 
+                - 
+                (self.psi_equation_gen.j_index_matrix[left_circle]*self.delta - self.psi_equation_gen.h)**2
+            )
+        ) / self.delta
+        horizontal_irregular = g < 1 # when g is NaN is not irregular
+        g = g[horizontal_irregular]
+
+        y_velocity[left_circle][horizontal_irregular] = (
+            g**2*left_neighbors[left_circle][horizontal_irregular]
+            +
+            self.psi_matrix[left_circle][horizontal_irregular]*(1-g**2)
+        ) / (self.delta*g*(1 + g))
+
+        x_velocity[left_circle][vertical_irregular] = (
+            b**2*top_neighbors[left_circle][vertical_irregular]
+            +
+            self.psi_matrix[left_circle][vertical_irregular]*(1-b**2)
+        ) / (self.delta*b*(1 + b))
+
+        # For the right circle
+
+        g = (
+            self.psi_equation_gen.i_index_matrix[right_circle]*self.delta
+            -
+            self.psi_equation_gen.d 
+            - 
+            self.psi_equation_gen.L/2 
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2 
+                - 
+                (self.psi_equation_gen.j_index_matrix[right_circle]*self.delta - self.psi_equation_gen.h)**2
+            )
+        ) / self.delta
+        horizontal_irregular = g < 1 # when g is NaN is not irregular
+        g = g[horizontal_irregular]
+
+        b = (
+            self.psi_equation_gen.j_index_matrix[right_circle]*self.delta
+            -
+            self.psi_equation_gen.h
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2
+                -
+                (
+                    self.psi_equation_gen.d 
+                    + 
+                    self.psi_equation_gen.L/2 
+                    - 
+                    self.psi_equation_gen.i_index_matrix[right_circle]*self.delta
+                )**2
+            )
+        ) / self.delta
+        vertical_irregular = b < 1 # when b is NaN is not irregular
+        b = b[vertical_irregular]
+
+        x_velocity[right_circle][vertical_irregular] = (
+            b**2*top_neighbors[right_circle][vertical_irregular]
+            +
+            self.psi_matrix[right_circle][vertical_irregular]*(1-b**2)
+        ) / (self.delta*b*(1 + b))
+
+        y_velocity[right_circle][horizontal_irregular] = (
+            -g**2*right_neighbors[right_circle][horizontal_irregular]
+            -
+            self.psi_matrix[right_circle][horizontal_irregular]*(1-g**2)
+        ) / (self.delta*g*(1 + g))
+
+        # on the bottom of the circle use irregular contour of the first derivative
+        a = ((self.psi_equation_gen.h - self.psi_equation_gen.j_index_matrix[circle_bottom]*self.delta) / self.delta)[0]
+
+        if a != 0:
+            x_velocity[circle_bottom] = (
+                -a**2*bottom_neighbors[circle_bottom]
+                -
+                self.psi_matrix[circle_bottom]*(1-a**2)
+            ) / (a*self.delta*(1 + a))
+        else:
+            x_velocity[circle_bottom] = -bottom_neighbors[circle_bottom] / self.delta
     
         velocity_module = np.sqrt(x_velocity**2 + y_velocity**2)
 
@@ -84,58 +186,76 @@ class PsiSubEquationsGenerator:
         abs_pressure = rel_pressure + 101325
         return (abs_pressure, rel_pressure)
     
-    def __velocity_to_aceleration(self):
-        num_rows, num_columns = self.x_velocity.shape
+    def __psi_to_acceleration(self):
+        num_rows, num_columns = self.psi_matrix.shape
 
-        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.x_velocity[:-1]))[1:-1,1:-1]
-        right_neighbors = np.vstack((self.x_velocity[1:], np.full(num_columns, np.nan)))[1:-1,1:-1]
-        top_neighbors = np.hstack((self.x_velocity[:,1:], np.full((num_rows, 1), np.nan)))[1:-1,1:-1]
-        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.x_velocity[:,:-1]))[1:-1,1:-1]
+        # define neighbor matrices of x velocities, insert nan in the borders
+        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.psi_matrix[:-1]))
+        right_neighbors = np.vstack((self.psi_matrix[1:], np.full(num_columns, np.nan)))
+        top_neighbors = np.hstack((self.psi_matrix[:,1:], np.full((num_rows, 1), np.nan)))
+        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.psi_matrix[:,:-1]))
 
-        # define matrices with the second neighbors of each element, insert nan in the borders
-        left_left_neighbors = np.vstack((np.full((2, num_columns), np.nan), self.x_velocity[:-2]))[1:-1,1:-1]
-        right_right_neighbors = np.vstack((self.x_velocity[2:], np.full((2, num_columns), np.nan)))[1:-1,1:-1]
-        top_top_neighbors = np.hstack((self.x_velocity[:,2:], np.full((num_rows, 2), np.nan)))[1:-1,1:-1]
-        bottom_bottom_neighbors = np.hstack((np.full((num_rows, 2), np.nan), self.x_velocity[:,:-2]))[1:-1,1:-1]
+        right_top_neighbors = np.hstack((right_neighbors[:,1:], np.full((num_rows, 1), np.nan)))
+        right_bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), right_neighbors[:,:-1]))
+        left_top_neighbors = np.hstack((left_neighbors[:,1:], np.full((num_rows, 1), np.nan)))
+        left_bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), left_neighbors[:,:-1]))
 
-        x_x_acel = (right_neighbors - left_neighbors)/(2*self.delta)
-        x_y_acel = (top_neighbors - bottom_neighbors)/(2*self.delta)
+        x_x_acel = (right_top_neighbors - left_top_neighbors - right_bottom_neighbors + left_bottom_neighbors) / (4*self.delta**2)
+        y_y_acel = - x_x_acel
+    
+        x_y_acel = (top_neighbors - 2*self.psi_matrix + bottom_neighbors)/(self.delta**2)
 
-        left_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta <= self.psi_equation_gen.x_size/2))[2:-2,2:-2]
-        right_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta > self.psi_equation_gen.x_size/2))[2:-2,2:-2]
-        circle_bottom = self.psi_equation_gen.circle_bottom_border[2:-2,2:-2]
+        y_x_acel = -(right_neighbors - 2*self.psi_matrix + left_neighbors)/(self.delta**2)
 
-        x_x_acel[left_circle] = (3*self.x_velocity[1:-1,1:-1][left_circle] - 4*left_neighbors[left_circle] + left_left_neighbors[left_circle])/(2*self.delta)
-        x_x_acel[right_circle] = (-3*self.x_velocity[1:-1,1:-1][right_circle] + 4*right_neighbors[right_circle] - right_neighbors[right_circle])/(2*self.delta)
+        left_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta <= self.psi_equation_gen.x_size/2))
+        right_circle = (self.psi_equation_gen.circle_border & (self.psi_equation_gen.i_index_matrix*self.delta > self.psi_equation_gen.x_size/2))
+        circle_bottom = self.psi_equation_gen.circle_bottom_border
 
-        x_y_acel[left_circle] = (-3*self.x_velocity[1:-1,1:-1][left_circle] + 4*top_neighbors[left_circle] + top_top_neighbors[left_circle])/(2*self.delta)
-        x_y_acel[right_circle] = (-3*self.x_velocity[1:-1,1:-1][right_circle] + 4*top_neighbors[right_circle] + top_top_neighbors[right_circle])/(2*self.delta)
+        # For the left circle
+        b = (
+            self.psi_equation_gen.j_index_matrix[left_circle]*self.delta
+            -
+            self.psi_equation_gen.h
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2
+                -
+                (self.psi_equation_gen.d + self.psi_equation_gen.L/2 - self.psi_equation_gen.i_index_matrix[left_circle]*self.delta)**2
+            )
+        ) / self.delta
+        vertical_irregular = b < 1 # when b is NaN is not irregular
+        b = b[vertical_irregular]
 
-        x_y_acel[circle_bottom] = (3*self.x_velocity[1:-1,1:-1][circle_bottom] - 4*bottom_neighbors[circle_bottom] + bottom_bottom_neighbors[circle_bottom])/(2*self.delta)
+        g = (
+            self.psi_equation_gen.d 
+            + 
+            self.psi_equation_gen.L/2 
+            - 
+            self.psi_equation_gen.i_index_matrix[left_circle]*self.delta
+            -
+            np.sqrt(
+                (self.psi_equation_gen.L/2)**2 
+                - 
+                (self.psi_equation_gen.j_index_matrix[left_circle]*self.delta - self.psi_equation_gen.h)**2
+            )
+        ) / self.delta
+        horizontal_irregular = g < 1 # when g is NaN is not irregular
+        g = g[horizontal_irregular]
 
-        num_rows, num_columns = self.y_velocity.shape
+        x_y_acel[left_circle][vertical_irregular] = (
+            2*(b*top_neighbors[left_circle][vertical_irregular] - self.psi_matrix[left_circle][vertical_irregular]*(1+b))
+        ) / (
+            b*self.delta**2*(b + 1)
+        )
 
-        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.y_velocity[:-1]))[1:-1,1:-1]
-        right_neighbors = np.vstack((self.y_velocity[1:], np.full(num_columns, np.nan)))[1:-1,1:-1]
-        top_neighbors = np.hstack((self.y_velocity[:,1:], np.full((num_rows, 1), np.nan)))[1:-1,1:-1]
-        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.y_velocity[:,:-1]))[1:-1,1:-1]
+        y_x_acel[left_circle][horizontal_irregular] = -(
+            2*(g*right_neighbors[left_circle][horizontal_irregular] - self.psi_matrix[left_circle][horizontal_irregular]*(1+g))
+        ) / (
+            g*self.delta**2*(g + 1)
+        )
 
-        # define matrices with the second neighbors of each element, insert nan in the borders
-        left_left_neighbors = np.vstack((np.full((2, num_columns), np.nan), self.y_velocity[:-2]))[1:-1,1:-1]
-        right_right_neighbors = np.vstack((self.y_velocity[2:], np.full((2, num_columns), np.nan)))[1:-1,1:-1]
-        top_top_neighbors = np.hstack((self.y_velocity[:,2:], np.full((num_rows, 2), np.nan)))[1:-1,1:-1]
-        bottom_bottom_neighbors = np.hstack((np.full((num_rows, 2), np.nan), self.y_velocity[:,:-2]))[1:-1,1:-1]
-
-        y_x_acel = (right_neighbors - left_neighbors)/(2*self.delta)
-        y_y_acel = (top_neighbors - bottom_neighbors)/(2*self.delta)
-
-        y_x_acel[left_circle] = (3*self.y_velocity[1:-1,1:-1][left_circle] - 4*left_neighbors[left_circle] + left_left_neighbors[left_circle])/(2*self.delta)
-        y_x_acel[right_circle] = (-3*self.y_velocity[1:-1,1:-1][right_circle] + 4*right_neighbors[right_circle] - right_neighbors[right_circle])/(2*self.delta)
-
-        y_y_acel[left_circle] = (-3*self.y_velocity[1:-1,1:-1][left_circle] + 4*top_neighbors[left_circle] + top_top_neighbors[left_circle])/(2*self.delta)
-        y_y_acel[right_circle] = (-3*self.y_velocity[1:-1,1:-1][right_circle] + 4*top_neighbors[right_circle] + top_top_neighbors[right_circle])/(2*self.delta)
-
-        y_y_acel[circle_bottom] = (3*self.y_velocity[1:-1,1:-1][circle_bottom] - 4*bottom_neighbors[circle_bottom] + bottom_bottom_neighbors[circle_bottom])/(2*self.delta)
+        x_x_acel[:,:] = 0
+        y_y_acel[:,:] = 0
 
         return (x_x_acel, x_y_acel, y_x_acel, y_y_acel)
     
@@ -143,9 +263,9 @@ class PsiSubEquationsGenerator:
         ################### Processing the circular part of the circle
 
         # we must slice the matrices because the acceleration is sliced
-        circle_border = self.psi_equation_gen.circle_border[2:-2, 2:-2]
-        i_index_matrix = self.psi_equation_gen.i_index_matrix[2:-2, 2:-2]
-        j_index_matrix = self.psi_equation_gen.j_index_matrix[2:-2, 2:-2]
+        circle_border = self.psi_equation_gen.circle_border
+        i_index_matrix = self.psi_equation_gen.i_index_matrix
+        j_index_matrix = self.psi_equation_gen.j_index_matrix
 
         # the coordinates of the points near the circle border
         circle_border_x_values = i_index_matrix[circle_border]*self.delta
@@ -153,8 +273,8 @@ class PsiSubEquationsGenerator:
 
         # the velocities of the points near the circle border
         # again we use the slice so that the velocity matrix has the same size as the acceleration matrix
-        circle_border_x_vel_values = self.x_velocity[1:-1, 1:-1][circle_border]
-        circle_border_y_vel_values = self.y_velocity[1:-1, 1:-1][circle_border]
+        circle_border_x_vel_values = self.x_velocity[circle_border]
+        circle_border_y_vel_values = self.y_velocity[circle_border]
 
         # the distance to the center of the circle and the angle to the center of the circle of each point
         circle_border_radius = np.sqrt((circle_border_x_values - self.psi_equation_gen.L/2 - self.psi_equation_gen.d)**2 + (circle_border_y_values - self.psi_equation_gen.h)**2)
@@ -189,16 +309,16 @@ class PsiSubEquationsGenerator:
         ################### Processing the bottom part of the circle
 
         # now we repeat the process to the bottom of the circle
-        circle_bottom_border = self.psi_equation_gen.circle_bottom_border[2:-2, 2:-2]
+        circle_bottom_border = self.psi_equation_gen.circle_bottom_border
 
-        i_index_matrix = self.psi_equation_gen.i_index_matrix[2:-2, 2:-2]
-        j_index_matrix = self.psi_equation_gen.j_index_matrix[2:-2, 2:-2]
+        i_index_matrix = self.psi_equation_gen.i_index_matrix
+        j_index_matrix = self.psi_equation_gen.j_index_matrix
 
         circle_bottom_border_x_values = i_index_matrix[circle_bottom_border]*self.delta
         circle_bottom_border_y_values = j_index_matrix[circle_bottom_border]*self.delta
 
-        circle_bottom_border_x_vel_values = self.x_velocity[1:-1, 1:-1][circle_bottom_border]
-        circle_bottom_border_y_vel_values = self.y_velocity[1:-1, 1:-1][circle_bottom_border]
+        circle_bottom_border_x_vel_values = self.x_velocity[circle_bottom_border]
+        circle_bottom_border_y_vel_values = self.y_velocity[circle_bottom_border]
 
         delta_y = self.psi_equation_gen.h - circle_bottom_border_y_values
 
