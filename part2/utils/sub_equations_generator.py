@@ -254,8 +254,67 @@ class PsiSubEquationsGenerator:
             g*self.delta**2*(g + 1)
         )
 
-        x_x_acel[:,:] = 0
-        y_y_acel[:,:] = 0
+        # Calculating x_x accel and y_y accel in the left circle
+        R = self.psi_equation_gen.L/2
+        d_x = (
+            self.psi_equation_gen.d 
+            + 
+            R
+            - 
+            self.psi_equation_gen.i_index_matrix[left_circle]*self.delta
+        )
+        d_y = (
+            self.psi_equation_gen.j_index_matrix[left_circle] * self.delta
+            -
+            self.psi_equation_gen.h
+        )
+        alpha_1 = (
+            d_x - d_y - np.sqrt(2*R**2 - (d_x + d_y)**2)
+        ) / 2
+
+        alpha_2 = (
+            d_x + d_y - np.sqrt(2*R**2 - (d_x - d_y)**2)
+        ) / 2
+
+        top_right_irregular = alpha_2 <= self.delta
+        bottom_right_irregular = alpha_1 <= self.delta
+
+        # just top right irregular
+        jtri = top_right_irregular & (~bottom_right_irregular)
+        # just bottom right irregular
+        jbri = bottom_right_irregular & (~top_right_irregular)
+
+        # top and bottom right irregular
+        tbri = bottom_right_irregular & top_right_irregular
+
+        x_x_acel[left_circle][jtri] = (
+            (alpha_2[jtri]**2 + alpha_2[jtri])*(left_bottom_neighbors[left_circle][jtri])
+            -
+            (2) * (left_top_neighbors[left_circle][jtri] + alpha_2[jtri]*right_bottom_neighbors[left_circle][jtri])
+        ) / (
+            2*self.delta**2*(alpha_2[jtri]**2 + alpha_2[jtri])*(2)
+        )
+
+        x_x_acel[left_circle][jbri] = (
+            (2)*(right_top_neighbors[left_circle][jbri] + alpha_1[jbri] * left_bottom_neighbors[left_circle][jbri])
+            -
+            (alpha_1[jbri]**2 + alpha_1[jbri]) * left_top_neighbors[left_circle][jbri]
+        ) / (
+            2*self.delta**2*(2)*(alpha_1[jbri]**2 + alpha_1[jbri])
+        )
+
+        x_x_acel[left_circle][tbri] = (
+            (alpha_2[tbri]**2 + alpha_2[tbri])*(alpha_1[tbri] * left_bottom_neighbors[left_circle][tbri])
+            -
+            (alpha_1[tbri]**2 + alpha_1[tbri]) * left_top_neighbors[left_circle][tbri]
+        ) / (
+            2*self.delta**2*(alpha_2[tbri]**2 + alpha_2[tbri])*(alpha_1[tbri]**2 + alpha_1[tbri])
+        )
+
+        y_y_acel[left_circle] = -x_x_acel[left_circle]
+
+        x_x_acel[right_circle] = 0
+        y_y_acel[right_circle] = 0
 
         return (x_x_acel, x_y_acel, y_x_acel, y_y_acel)
     
