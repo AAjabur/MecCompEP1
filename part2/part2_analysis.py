@@ -39,11 +39,10 @@ text = ""
 iterations = 1
 
 # just to help the user to select a pre processed psi matrix
-matrix_option_files = os.listdir("test")
+matrix_option_files = os.listdir(os.path.dirname(os.path.realpath(__file__)) + "/test")
 for matrix_option in matrix_option_files:
-    if os.path.isfile(os.path.join("test", matrix_option)):
-        text += f"{iterations}: {matrix_option} \n"
-        iterations += 1
+    text += f"{iterations}: {matrix_option} \n"
+    iterations += 1
 
 matrix_file_number_choice = int(input("Escolha um arquivo de matriz para analisar \n" + text))
 matrix_file = matrix_option_files[matrix_file_number_choice-1]
