@@ -313,8 +313,16 @@ class PsiSubEquationsGenerator:
 
         y_y_acel[left_circle] = -x_x_acel[left_circle]
 
-        x_x_acel[right_circle] = 0
+        # now we take advantage of the symetry
+        if num_rows%2 == 0:
+            x_x_acel[:int(num_rows/2)] = -np.flip(x_x_acel[int(num_rows/2):], axis=0)
+            y_y_acel[:int(num_rows/2)] = np.flip(y_y_acel[int(num_rows/2):], axis=0)
+        else:
+            x_x_acel[:int(num_rows/2)] = -np.flip(x_x_acel[int(num_rows/2)+1:], axis=0)
+            y_y_acel[:int(num_rows/2)] = np.flip(y_y_acel[int(num_rows/2)+1:], axis=0)
+
         y_y_acel[right_circle] = 0
+        x_x_acel[right_circle] = 0
 
         return (x_x_acel, x_y_acel, y_x_acel, y_y_acel)
     
