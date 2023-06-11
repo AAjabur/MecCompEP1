@@ -58,10 +58,6 @@ def relaxation_gauss_seidel_temp(
     approx_result = np.copy(initial_guess)
     iteration = 0
 
-
-    x_matrix = temp_eq_gen.i_index_matrix*temp_eq_gen.delta
-    y_matrix = temp_eq_gen.j_index_matrix*temp_eq_gen.delta
-
     num_rows, num_columns = initial_guess.shape
     while relative_error > goal_relative_error:
         before_iteration = np.copy(approx_result)
@@ -71,14 +67,6 @@ def relaxation_gauss_seidel_temp(
                 func_iterator(i, j, approx_result)
 
                 approx_result[i,j] = relaxation*approx_result[i,j] + (1-relaxation)*last_approx_result[i,j]
-
-                if False:
-                    print(f"(i,j) = ({i},{j})")
-                    fig, ax = plt.subplots(1,1)
-                    cp = ax.contourf(x_matrix, y_matrix, approx_result - 273.15, 50, cmap="hot")
-                    fig.colorbar(cp)
-                
-                    plt.show()
 
         iteration += 1
         relative_error = np.nanmax(np.abs(before_iteration - approx_result))

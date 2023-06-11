@@ -22,17 +22,12 @@ plt.show()
 
 temp_eq_gen = MdfTempEquationGenerator(sub_eq_gen)
 temp_init_guess = temp_eq_gen.generate_initial_guess()
-print(temp_init_guess)
+
 temp = relaxation_gauss_seidel_temp(temp_eq_gen, temp_init_guess)
 fig, ax = plt.subplots(1,1)
 cp = ax.contourf(x_matrix, y_matrix, temp - 273.15, 50, cmap="hot")
 fig.colorbar(cp)
 
-max_indice = np.argmax(temp)
-max_indice = np.unravel_index(max_indice, temp.shape)
-
-print(temp_eq_gen.circle_border[max_indice])
-print(temp[temp_eq_gen.inside_circle] - 273.15)
 plt.show()
 
 
