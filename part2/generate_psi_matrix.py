@@ -1,9 +1,12 @@
-from utils.gauss_seidel import relaxation_gauss_seidel
+from utils.gauss_seidel import relaxation_gauss_seidel_psi
 from utils.mdf_equation_generator import MdfPsiEquationGenerator
 import matplotlib.pyplot as plt
 import numpy as np
 
 psi_matrices_options_parameters = {
+    "delta002": {
+        "delta": 0.02
+    },
     "delta002h005.npy": {
         "delta": 0.02,
         "h": 0.05
@@ -34,6 +37,6 @@ for file_name, matrix_params in psi_matrices_options_parameters.items():
 
     init_psi_guess = psi_eq_gen.generate_initial_psi_matrix()
 
-    psi_matrix = relaxation_gauss_seidel(psi_eq_gen, init_psi_guess, relaxation=1.85)
+    psi_matrix = relaxation_gauss_seidel_psi(psi_eq_gen, init_psi_guess, relaxation=1.85)
 
     np.save(f"test/{file_name}", psi_matrix)

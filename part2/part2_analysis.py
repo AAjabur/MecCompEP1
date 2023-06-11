@@ -10,6 +10,9 @@ import os
 
 # Dict to save the parameters of each saved psi_matrix
 psi_matrices_options_parameters = {
+    "delta002.npy": {
+        "delta": 0.02
+    },
     "delta002h005.npy": {
         "delta": 0.02,
         "h": 0.05

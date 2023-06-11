@@ -166,7 +166,7 @@ class PsiSubEquationsGenerator:
             ) / (a*self.delta*(1 + a))
         else:
             x_velocity[circle_bottom] = -bottom_neighbors[circle_bottom] / self.delta
-    
+
         velocity_module = np.sqrt(x_velocity**2 + y_velocity**2)
 
         return (x_velocity, y_velocity, velocity_module)
@@ -315,14 +315,16 @@ class PsiSubEquationsGenerator:
 
         # now we take advantage of the symetry
         if num_rows%2 == 0:
-            x_x_acel[:int(num_rows/2)] = -np.flip(x_x_acel[int(num_rows/2):], axis=0)
-            y_y_acel[:int(num_rows/2)] = np.flip(y_y_acel[int(num_rows/2):], axis=0)
+            x_x_acel[int(num_rows/2):] = -np.flip(x_x_acel[:int(num_rows/2)], axis=0)
         else:
-            x_x_acel[:int(num_rows/2)] = -np.flip(x_x_acel[int(num_rows/2)+1:], axis=0)
-            y_y_acel[:int(num_rows/2)] = np.flip(y_y_acel[int(num_rows/2)+1:], axis=0)
+            x_x_acel[int(num_rows/2)+1:] = -np.flip(x_x_acel[:int(num_rows/2)], axis=0)
 
-        y_y_acel[right_circle] = 0
-        x_x_acel[right_circle] = 0
+        y_y_acel = -x_x_acel
+
+        x_x_acel[:,:] = 0
+        y_y_acel[:,:] = 0
+        x_y_acel[:,:] = 0
+        y_x_acel[:,:] = 0
 
         return (x_x_acel, x_y_acel, y_x_acel, y_y_acel)
     
