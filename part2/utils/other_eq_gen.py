@@ -11,7 +11,7 @@ class MdfTempEquationGenerator:
             rho = 1.25,   # SI
             c_p = 1002,   # SI
     ):
-        self.delta = psi_sub_eq_gen.psi_equation_gen.L / 8
+        self.delta = psi_sub_eq_gen.psi_equation_gen.delta
 
         self.x_velocities = psi_sub_eq_gen.x_velocity
         self.y_velocities = psi_sub_eq_gen.y_velocity
@@ -60,28 +60,50 @@ class MdfTempEquationGenerator:
         # depending on the position of the point, use different processing
         if self.bottom_border[i, j]:
             self.__process_bottom_border(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("EMBAIXO")
         elif self.top_border[i, j]:
             self.__proccess_top_border(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("EM CIMA")
         elif self.left_border[i, j]:
             self.__proccess_left_border(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("ESQUERDA")
         elif self.right_border[i, j]:
             self.__proccess_right_border(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("DIREITA")
         elif self.bottom_right_border[i,j]:
             temp_matrix[i,j] = self.T_outside
+            if (i==10 and j==4):
+                print("CU")
         elif self.bottom_left_border[i,j]:
             temp_matrix[i, j] = self.T_outside
+            if (i==10 and j==4):
+                print("CU")
         elif self.top_left_border[i,j]:
             temp_matrix[i,j] = self.T_outside
+            if (i==10 and j==4):
+                print("CU")
         elif self.top_right_border[i,j]:
             temp_matrix[i,j] = self.T_outside
+            if (i==10 and j==4):
+                print("CU")
         elif self.inside_circle[i, j]:
             self.__process_inside_circle(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("TO DENTRO")
         elif self.circle_border[i, j]:
             self.__proccess_circle_border(temp_matrix, i, j)
         elif self.circle_bottom_border[i,j]:
             self.__proccess_circle_bottom_border(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("TO EMBAIXO")
         elif self.regular_points[i, j]:
             self.__proccess_regular_points(temp_matrix, i, j)
+            if (i==10 and j==4):
+                print("SOU REGULAR")
         else:
             raise Exception()
 
@@ -245,6 +267,7 @@ class MdfTempEquationGenerator:
         v_irregular = vertical_irregular & (~horizontal_irregular) # irregular just verticaly
 
         if h_v_irregular:
+            x_border_temp = y_border_temp
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -270,8 +293,40 @@ class MdfTempEquationGenerator:
                 +
                 self.rho * self.c_p * self.y_velocities[i,j] / b
             )
+            print("HV NA DIREITA")
+            print(f"\t g={g}, b={b}, u={self.x_velocities[i,j]}, v={self.y_velocities[i,j]}")
+            print(f"\t rho times c_p = {self.rho * self.c_p}")
+            print(f"\t x_border_temp = {x_border_temp}, y_border_temp = {y_border_temp}")
+            print(f"\t parcela de x {x_border_temp * self.x_velocities[i,j] / g}")
+            print(f"\t parcela de y {y_border_temp * self.y_velocities[i,j] / b}")
+            parcela_2 = (self.rho * self.c_p
+                *
+                (
+                    -x_border_temp * self.x_velocities[i,j] / g
+                    -
+                    y_border_temp * self.y_velocities[i,j] / b
+                ))
+            parcela_1 = (self.k * 2
+                *
+                (
+                    (x_border_temp + g*temp_matrix[i+1,j]) / (g*self.delta*(1 + g))
+                    +
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
+                ))
+            denominador = (
+                2 * self.k / (g * self.delta)
+                +
+                2 * self.k / (b * self.delta)
+                +
+                self.rho * self.c_p * self.x_velocities[i,j] / g
+                +
+                self.rho * self.c_p * self.y_velocities[i,j] / b
+            )
+            print(f"\t parcela1 = {parcela_1}, parcela2 = {parcela_2}, denominador = {denominador}")
         
         elif h_irregular:
+            if (i==10 and j==4):
+                print("H NA DIREITA")
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -299,6 +354,8 @@ class MdfTempEquationGenerator:
             )
 
         elif v_irregular:
+            if (i==10 and j==4):
+                print("V NA DIREITA")
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -326,6 +383,8 @@ class MdfTempEquationGenerator:
             )
 
         else: # not irregular, can process regularly
+            if (i==10 and j==4):
+                print("REGULAR NA DIREITA")
             self.__proccess_regular_points(temp_matrix, i, j)
 
     def __process_left_circle_border(self, temp_matrix, i, j):
@@ -365,6 +424,7 @@ class MdfTempEquationGenerator:
         v_irregular = vertical_irregular & (~horizontal_irregular) # irregular just verticaly
 
         if h_v_irregular:
+            print("HV NA ESQUERDA")
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -390,8 +450,39 @@ class MdfTempEquationGenerator:
                 +
                 self.rho * self.c_p * self.y_velocities[i,j] / b
             )
+            parcela_2 = (self.rho * self.c_p
+                *
+                (
+                    x_border_temp * self.x_velocities[i,j] / g
+                    -
+                    y_border_temp * self.y_velocities[i,j] / b
+                ))
+            parcela_1 = (self.k * 2
+                *
+                (
+                    (x_border_temp + g*temp_matrix[i-1,j]) / (g*self.delta*(1 + g))
+                    +
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
+                ))
+            denominador = (
+                2 * self.k / (g * self.delta)
+                +
+                2 * self.k / (b * self.delta)
+                -
+                self.rho * self.c_p * self.x_velocities[i,j] / g
+                +
+                self.rho * self.c_p * self.y_velocities[i,j] / b
+            )
+            print(f"\t g={g}, b={b}, u={self.x_velocities[i,j]}, v={self.y_velocities[i,j]}")
+            print(f"\t rho times c_p = {self.rho * self.c_p}")
+            print(f"\t x_border_temp = {x_border_temp}, y_border_temp = {y_border_temp}")
+            print(f"\t parcela de x {x_border_temp * self.x_velocities[i,j] / g}")
+            print(f"\t parcela de y {y_border_temp * self.y_velocities[i,j] / b}")
+            print(f"\t parcela1 = {parcela_1}, parcela2 = {parcela_2}, denominador = {denominador}")
         
         elif h_irregular:
+            if (i==10 and j==4):
+                print("H NA ESQUERDA")
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -419,6 +510,8 @@ class MdfTempEquationGenerator:
             )
 
         elif v_irregular:
+            if (i==10 and j==4):
+                print("V NA ESQUERDA")
             temp_matrix[i, j] = (
                 self.k * 2
                 *
@@ -446,6 +539,8 @@ class MdfTempEquationGenerator:
             )
 
         else: # not irregular, can process regularly
+            if (i==10 and j==4):
+                print("REGULAR NA ESQUERDA")
             self.__proccess_regular_points(temp_matrix, i, j)
 
     def __proccess_regular_points(self, temp_matrix, i, j):
