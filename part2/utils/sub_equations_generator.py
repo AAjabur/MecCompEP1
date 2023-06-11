@@ -158,14 +158,20 @@ class PsiSubEquationsGenerator:
         # on the bottom of the circle use irregular contour of the first derivative
         a = ((self.psi_equation_gen.h - self.psi_equation_gen.j_index_matrix[circle_bottom]*self.delta) / self.delta)[0]
 
-        if a != 0:
-            x_velocity[circle_bottom] = (
-                -a**2*bottom_neighbors[circle_bottom]
-                -
-                self.psi_matrix[circle_bottom]*(1-a**2)
-            ) / (a*self.delta*(1 + a))
+        if not np.any(np.isnan(bottom_neighbors[circle_bottom])):
+            if a != 0:
+                x_velocity[circle_bottom] = (
+                    -a**2*bottom_neighbors[circle_bottom]
+                    -
+                    self.psi_matrix[circle_bottom]*(1-a**2)
+                ) / (a*self.delta*(1 + a))
+            else:
+                x_velocity[circle_bottom] = -bottom_neighbors[circle_bottom] / self.delta
         else:
-            x_velocity[circle_bottom] = -bottom_neighbors[circle_bottom] / self.delta
+            x_velocity[circle_bottom] = 0
+
+        x_velocity[self.psi_equation_gen.inside_circle] = 0
+        y_velocity[self.psi_equation_gen.inside_circle] = 0
 
         velocity_module = np.sqrt(x_velocity**2 + y_velocity**2)
 

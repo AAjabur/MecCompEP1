@@ -100,10 +100,5 @@ print(f"Forças no circulo {sub_equation_gen.total_force_on_circle}")
 print(f"Forças embaixo {sub_equation_gen.total_forces_on_circle_bottom}")
 print(f"Forças totais {sub_equation_gen.total_forces_on_circle_bottom - sub_equation_gen.total_force_on_circle} N")
 
-temp_eq_gen = MdfTempEquationGenerator(sub_equation_gen)
-
-initial_guess = temp_eq_gen.generate_initial_guess()
-
-relaxation_gauss_seidel_temp(temp_eq_gen, initial_guess, )
 
 

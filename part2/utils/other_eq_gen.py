@@ -54,13 +54,11 @@ class MdfTempEquationGenerator:
         self.regular_points = psi_eq_gen.regular_points
 
     def generate_initial_guess(self):
-        return np.zeros_like(self.x_velocities)
+        return np.ones_like(self.x_velocities)*273.15
 
     def iterate_temp(self, i, j, temp_matrix):
         # depending on the position of the point, use different processing
-        if self.circle_border[i, j]:
-            self.__proccess_circle_border(temp_matrix, i, j)
-        elif self.bottom_border[i, j]:
+        if self.bottom_border[i, j]:
             self.__process_bottom_border(temp_matrix, i, j)
         elif self.top_border[i, j]:
             self.__proccess_top_border(temp_matrix, i, j)
@@ -68,22 +66,24 @@ class MdfTempEquationGenerator:
             self.__proccess_left_border(temp_matrix, i, j)
         elif self.right_border[i, j]:
             self.__proccess_right_border(temp_matrix, i, j)
-        elif self.circle_bottom_border[i,j]:
-            self.__proccess_circle_bottom_border(temp_matrix, i, j)
-        elif (
-            self.bottom_left_border[i,j]
-            or
-            self.bottom_right_border[i,j]
-            ):
-            temp_matrix[i, j] = 0
+        elif self.bottom_right_border[i,j]:
+            temp_matrix[i,j] = self.T_outside
+        elif self.bottom_left_border[i,j]:
+            temp_matrix[i, j] = self.T_outside
         elif self.top_left_border[i,j]:
-            temp_matrix[i,j] = 0
+            temp_matrix[i,j] = self.T_outside
         elif self.top_right_border[i,j]:
-            temp_matrix[i,j] = 0
+            temp_matrix[i,j] = self.T_outside
         elif self.inside_circle[i, j]:
             self.__process_inside_circle(temp_matrix, i, j)
+        elif self.circle_border[i, j]:
+            self.__proccess_circle_border(temp_matrix, i, j)
+        elif self.circle_bottom_border[i,j]:
+            self.__proccess_circle_bottom_border(temp_matrix, i, j)
         elif self.regular_points[i, j]:
             self.__proccess_regular_points(temp_matrix, i, j)
+        else:
+            raise Exception()
 
     def __process_inside_circle(self, temp_matrix, i, j):
         angle = np.arctan2(
@@ -92,9 +92,9 @@ class MdfTempEquationGenerator:
         )
 
         if angle < np.pi/3:
-            temp_matrix[i,j] = self.T_inside
-        else:
             temp_matrix[i,j] = self.T_motor
+        else:
+            temp_matrix[i,j] = self.T_inside
 
     def __process_bottom_border(self, temp_matrix, i, j):
         temp_matrix[i, j] = (
@@ -107,6 +107,8 @@ class MdfTempEquationGenerator:
             self.rho * self.c_p * self.x_velocities[i, j] * self.u_s[i, j]
             *
             temp_matrix[i + self.u_s[i, j], j]
+        ) / (
+            4*self.k/self.delta - self.rho*self.c_p*self.x_velocities[i,j]*self.u_s[i,j]
         )
 
     def __proccess_left_border(self, temp_matrix, i, j):
@@ -247,26 +249,26 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    x_border_temp + g*temp_matrix[i+1,j] / (g*self.delta*(1 + g))
+                    (x_border_temp + g*temp_matrix[i+1,j]) / (g*self.delta*(1 + g))
                     +
-                    y_border_temp + b*temp_matrix[i,j+1] / (b*self.delta*(1 + b))
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
                 )
                 -
                 self.rho * self.c_p
                 *
                 (
-                    -x_border_temp * self.x_velocities[i,j]
+                    -x_border_temp * self.x_velocities[i,j] / g
                     -
-                    y_border_temp * self.y_velocities[i,j]
+                    y_border_temp * self.y_velocities[i,j] / b
                 )
             ) / (
                 2 * self.k / (g * self.delta)
                 +
                 2 * self.k / (b * self.delta)
                 +
-                self.rho * self.c_p * self.x_velocities[i,j]
+                self.rho * self.c_p * self.x_velocities[i,j] / g
                 +
-                self.rho * self.c_p * self.y_velocities[i,j]
+                self.rho * self.c_p * self.y_velocities[i,j] / b
             )
         
         elif h_irregular:
@@ -274,15 +276,15 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    x_border_temp + g*temp_matrix[i+1,j] / (g*self.delta*(1 + g))
+                    (x_border_temp + g*temp_matrix[i+1,j]) / (g*self.delta*(1 + g))
                     +
-                    temp_matrix[i,j-1] + temp_matrix[i,j+1] / (self.delta*(2))
+                    (temp_matrix[i,j-1] + temp_matrix[i,j+1]) / (self.delta*(2))
                 )
                 -
                 self.rho * self.c_p
                 *
                 (
-                    -x_border_temp * self.x_velocities[i,j]
+                    -x_border_temp * self.x_velocities[i,j] / g
                     +
                     self.y_velocities[i,j] * self.v_s[i,j] * temp_matrix[i,j+self.v_s[i,j]]
                 )
@@ -291,7 +293,7 @@ class MdfTempEquationGenerator:
                 +
                 2 * self.k / (self.delta)
                 +
-                self.rho * self.c_p * self.x_velocities[i,j]
+                self.rho * self.c_p * self.x_velocities[i,j] / g
                 -
                 self.rho * self.c_p * self.y_velocities[i,j] * self.v_s[i,j]
             )
@@ -301,9 +303,9 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    temp_matrix[i+1,j] + temp_matrix[i-1,j] / (self.delta*(2))
+                    (temp_matrix[i+1,j] + temp_matrix[i-1,j]) / (self.delta*(2))
                     +
-                    y_border_temp + b*temp_matrix[i,j+1] / (b*self.delta*(1 + b))
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
                 )
                 -
                 self.rho * self.c_p
@@ -311,7 +313,7 @@ class MdfTempEquationGenerator:
                 (
                     temp_matrix[i+self.u_s[i,j], j] * self.x_velocities[i,j] * self.u_s[i,j]
                     -
-                    y_border_temp * self.y_velocities[i,j]
+                    y_border_temp * self.y_velocities[i,j] / b
                 )
             ) / (
                 2 * self.k / (self.delta)
@@ -320,7 +322,7 @@ class MdfTempEquationGenerator:
                 -
                 self.rho * self.c_p * self.x_velocities[i,j] * self.u_s[i,j]
                 +
-                self.rho * self.c_p * self.y_velocities[i,j]
+                self.rho * self.c_p * self.y_velocities[i,j] / b
             )
 
         else: # not irregular, can process regularly
@@ -367,26 +369,26 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    x_border_temp + g*temp_matrix[i-1,j] / (g*self.delta*(1 + g))
+                    (x_border_temp + g*temp_matrix[i-1,j]) / (g*self.delta*(1 + g))
                     +
-                    y_border_temp + b*temp_matrix[i,j+1] / (b*self.delta*(1 + b))
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
                 )
                 -
                 self.rho * self.c_p
                 *
                 (
-                    x_border_temp * self.x_velocities[i,j]
+                    x_border_temp * self.x_velocities[i,j] / g
                     -
-                    y_border_temp * self.y_velocities[i,j]
+                    y_border_temp * self.y_velocities[i,j] / b
                 )
             ) / (
                 2 * self.k / (g * self.delta)
                 +
                 2 * self.k / (b * self.delta)
                 -
-                self.rho * self.c_p * self.x_velocities[i,j]
+                self.rho * self.c_p * self.x_velocities[i,j] / g
                 +
-                self.rho * self.c_p * self.y_velocities[i,j]
+                self.rho * self.c_p * self.y_velocities[i,j] / b
             )
         
         elif h_irregular:
@@ -394,15 +396,15 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    x_border_temp + g*temp_matrix[i-1,j] / (g*self.delta*(1 + g))
+                    (x_border_temp + g*temp_matrix[i-1,j]) / (g*self.delta*(1 + g))
                     +
-                    temp_matrix[i,j-1] + temp_matrix[i,j+1] / (self.delta*(2))
+                    (temp_matrix[i,j-1] + temp_matrix[i,j+1]) / (self.delta*(2))
                 )
                 -
                 self.rho * self.c_p
                 *
                 (
-                    x_border_temp * self.x_velocities[i,j]
+                    x_border_temp * self.x_velocities[i,j] / g
                     +
                     self.y_velocities[i,j] * self.v_s[i,j] * temp_matrix[i,j+self.v_s[i,j]]
                 )
@@ -411,7 +413,7 @@ class MdfTempEquationGenerator:
                 +
                 2 * self.k / (self.delta)
                 -
-                self.rho * self.c_p * self.x_velocities[i,j]
+                self.rho * self.c_p * self.x_velocities[i,j] / g
                 -
                 self.rho * self.c_p * self.y_velocities[i,j] * self.v_s[i,j]
             )
@@ -421,9 +423,9 @@ class MdfTempEquationGenerator:
                 self.k * 2
                 *
                 (
-                    temp_matrix[i+1,j] + temp_matrix[i-1,j] / (self.delta*(2))
+                    (temp_matrix[i+1,j] + temp_matrix[i-1,j])/ (self.delta*(2))
                     +
-                    y_border_temp + b*temp_matrix[i,j+1] / (b*self.delta*(1 + b))
+                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
                 )
                 -
                 self.rho * self.c_p
@@ -431,7 +433,7 @@ class MdfTempEquationGenerator:
                 (
                     temp_matrix[i+self.u_s[i,j], j] * self.x_velocities[i,j] * self.u_s[i,j]
                     -
-                    y_border_temp * self.y_velocities[i,j]
+                    y_border_temp * self.y_velocities[i,j] / b
                 )
             ) / (
                 2 * self.k / (self.delta)
@@ -440,7 +442,7 @@ class MdfTempEquationGenerator:
                 -
                 self.rho * self.c_p * self.x_velocities[i,j] * self.u_s[i,j]
                 +
-                self.rho * self.c_p * self.y_velocities[i,j]
+                self.rho * self.c_p * self.y_velocities[i,j] / b
             )
 
         else: # not irregular, can process regularly

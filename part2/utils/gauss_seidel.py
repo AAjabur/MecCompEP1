@@ -2,6 +2,7 @@ import numpy as np
 from typing import Callable
 from utils.mdf_equation_generator import MdfPsiEquationGenerator
 from utils.other_eq_gen import MdfTempEquationGenerator
+from matplotlib import pyplot as plt
 
 def relaxation_gauss_seidel_psi(
         psi_eq_gen: MdfPsiEquationGenerator,
@@ -57,18 +58,24 @@ def relaxation_gauss_seidel_temp(
     approx_result = np.copy(initial_guess)
     iteration = 0
 
+    num_rows, num_columns = initial_guess.shape
     while relative_error > goal_relative_error:
         before_iteration = np.copy(approx_result)
-        for i in range(len(initial_guess)):
-             for j in range(len(initial_guess[0])):
+        for i in range(num_rows):
+            for j in range(num_columns):
                 last_approx_result = np.copy(approx_result)
                 func_iterator(i, j, approx_result)
 
                 approx_result[i,j] = relaxation*approx_result[i,j] + (1-relaxation)*last_approx_result[i,j]
-    
+
+        x_matrix = temp_eq_gen.i_index_matrix*temp_eq_gen.delta
+        y_matrix = temp_eq_gen.j_index_matrix*temp_eq_gen.delta
+
         iteration += 1
         relative_error = np.nanmax(np.abs(before_iteration - approx_result))
         print(relative_error)
+
+    return approx_result
 
     
                     
