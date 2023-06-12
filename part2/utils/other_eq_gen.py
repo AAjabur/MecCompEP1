@@ -1,9 +1,9 @@
-from .sub_equations_generator import PsiSubEquationsGenerator
+
 import numpy as np
 class MdfTempEquationGenerator:
     def __init__(
             self,
-            psi_sub_eq_gen: PsiSubEquationsGenerator,
+            psi_sub_eq_gen,
             T_motor = 80 + 273.15,    # K
             T_inside = 25 + 273.15,     # K
             T_outside = 20 + 273.15,    # K
@@ -50,6 +50,9 @@ class MdfTempEquationGenerator:
         self.inside_circle = psi_eq_gen.inside_circle
         self.circle_bottom_border = psi_eq_gen.circle_bottom_border
         self.circle_border = psi_eq_gen.circle_border
+
+        self.circle_left_border = self.circle_border & (self.i_index_matrix*self.delta < self.x_size/2)
+        self.circle_right_border = self.circle_border & (self.i_index_matrix*self.delta >= self.x_size/2)
 
         self.regular_points = psi_eq_gen.regular_points
 
@@ -271,29 +274,6 @@ class MdfTempEquationGenerator:
                 +
                 self.rho * self.c_p * self.y_velocities[i,j] / b
             )
-            parcela_2 = (self.rho * self.c_p
-                *
-                (
-                    -x_border_temp * self.x_velocities[i,j] / g
-                    -
-                    y_border_temp * self.y_velocities[i,j] / b
-                ))
-            parcela_1 = (self.k * 2
-                *
-                (
-                    (x_border_temp + g*temp_matrix[i+1,j]) / (g*self.delta*(1 + g))
-                    +
-                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
-                ))
-            denominador = (
-                2 * self.k / (g * self.delta)
-                +
-                2 * self.k / (b * self.delta)
-                +
-                self.rho * self.c_p * self.x_velocities[i,j] / g
-                +
-                self.rho * self.c_p * self.y_velocities[i,j] / b
-            )
         
         elif h_irregular:
             temp_matrix[i, j] = (
@@ -406,29 +386,6 @@ class MdfTempEquationGenerator:
                     y_border_temp * self.y_velocities[i,j] / b
                 )
             ) / (
-                2 * self.k / (g * self.delta)
-                +
-                2 * self.k / (b * self.delta)
-                -
-                self.rho * self.c_p * self.x_velocities[i,j] / g
-                +
-                self.rho * self.c_p * self.y_velocities[i,j] / b
-            )
-            parcela_2 = (self.rho * self.c_p
-                *
-                (
-                    x_border_temp * self.x_velocities[i,j] / g
-                    -
-                    y_border_temp * self.y_velocities[i,j] / b
-                ))
-            parcela_1 = (self.k * 2
-                *
-                (
-                    (x_border_temp + g*temp_matrix[i-1,j]) / (g*self.delta*(1 + g))
-                    +
-                    (y_border_temp + b*temp_matrix[i,j+1]) / (b*self.delta*(1 + b))
-                ))
-            denominador = (
                 2 * self.k / (g * self.delta)
                 +
                 2 * self.k / (b * self.delta)

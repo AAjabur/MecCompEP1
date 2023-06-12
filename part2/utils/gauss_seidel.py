@@ -36,7 +36,6 @@ def relaxation_gauss_seidel_psi(
         iteration += 1
 
         relative_error = np.nanmax(np.abs(before_iteration - approx_result))
-        print(relative_error)
 
         if num_rows%2 == 0:
             approx_result[int(num_rows/2):] = np.flip(approx_result[:int(num_rows/2)], axis=0)
@@ -70,7 +69,6 @@ def relaxation_gauss_seidel_temp(
 
         iteration += 1
         relative_error = np.nanmax(np.abs(before_iteration - approx_result))
-        print(relative_error)
 
     return approx_result
 

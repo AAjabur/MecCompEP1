@@ -1,5 +1,5 @@
 from utils.mdf_equation_generator import MdfPsiEquationGenerator
-from utils.sub_equations_generator import PsiSubEquationsGenerator
+from utils.sub_equations_generator import PsiSubEquationsGenerator, TempSubEquationsGenerator
 from utils.other_eq_gen import MdfTempEquationGenerator
 from utils.gauss_seidel import relaxation_gauss_seidel_temp, relaxation_gauss_seidel_psi
 from matplotlib import pyplot as plt
@@ -29,5 +29,23 @@ cp = ax.contourf(x_matrix, y_matrix, temp - 273.15, 50, cmap="hot")
 fig.colorbar(cp)
 
 plt.show()
+
+temp_sub_eq_gen = TempSubEquationsGenerator(temp, temp_eq_gen)
+
+fix, ax = plt.subplots()
+ax.quiver(
+    x_matrix,
+    y_matrix, 
+    temp_sub_eq_gen.dtdx, 
+    temp_sub_eq_gen.dtdy,
+    angles="xy",
+    pivot="mid",
+    scale=1700,
+    headwidth=4
+)
+temp_sub_eq_gen.calculate_heat_on_circle()
+
+plt.show()
+
 
 

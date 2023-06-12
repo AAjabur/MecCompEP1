@@ -1,5 +1,6 @@
 import numpy as np
 from .mdf_equation_generator import MdfPsiEquationGenerator
+from .other_eq_gen import MdfTempEquationGenerator
 from matplotlib import pyplot as plt
 
 class PsiSubEquationsGenerator:
@@ -452,3 +453,223 @@ class PsiSubEquationsGenerator:
 
         self.total_forces_on_circle_bottom = np.sum(pressures_mean_values * delta_lengths * self.fusca_width)
         self.total_forces_on_circle_bottom += force_on_left_vertice + force_on_right_vertice
+
+
+class TempSubEquationsGenerator:
+    def __init__(
+        self,
+        temp_matrix,
+        temp_eq_gen: MdfTempEquationGenerator,
+        fusca_width = 1.5
+    ):
+        self.temp_matrix = temp_matrix
+        self.temp_eq_gen = temp_eq_gen
+        self.delta = temp_eq_gen.delta
+
+        self.fusca_width = fusca_width
+        self.k = temp_eq_gen.k
+
+        self.dtdx, self.dtdy = self.__temp_to_temp_derivatives()
+
+    def __temp_to_temp_derivatives(self):
+        num_rows, num_columns = self.temp_matrix.shape
+
+        # define matrices with the neighbors of each element, insert nan in the borders
+        left_neighbors = np.vstack((np.full(num_columns, np.nan), self.temp_matrix[:-1]))
+        right_neighbors = np.vstack((self.temp_matrix[1:], np.full(num_columns, np.nan)))
+        top_neighbors = np.hstack((self.temp_matrix[:,1:], np.full((num_rows, 1), np.nan)))
+        bottom_neighbors = np.hstack((np.full((num_rows, 1), np.nan), self.temp_matrix[:,:-1]))
+
+        i_index_matrix = self.temp_eq_gen.i_index_matrix
+        j_index_matrix = self.temp_eq_gen.j_index_matrix
+
+        # using the second central difference
+        dtdx = (right_neighbors - left_neighbors)/(2*self.delta)
+        dtdy = (top_neighbors - bottom_neighbors)/(2*self.delta)
+
+        circle_left_border = self.temp_eq_gen.circle_left_border
+        circle_right_border = self.temp_eq_gen.circle_right_border
+        circle_bottom_border = (
+                ((i_index_matrix*self.delta) > (self.temp_eq_gen.d))
+                &
+                ((i_index_matrix*self.delta) < (self.temp_eq_gen.d + self.temp_eq_gen.L ))
+                &
+                (j_index_matrix == 0)
+            )
+        
+        # For the left circle
+        b = (
+            j_index_matrix[circle_left_border]*self.delta
+            -
+            self.temp_eq_gen.h
+            -
+            np.sqrt(
+                (self.temp_eq_gen.L/2)**2
+                -
+                (self.temp_eq_gen.d + self.temp_eq_gen.L/2 - i_index_matrix[circle_left_border]*self.delta)**2
+            )
+        ) / self.delta
+        vertical_irregular = b < 1 # when b is NaN is not irregular
+        b = b[vertical_irregular]
+
+        g = (
+            self.temp_eq_gen.d 
+            + 
+            self.temp_eq_gen.L/2 
+            - 
+            i_index_matrix[circle_left_border]*self.delta
+            -
+            np.sqrt(
+                (self.temp_eq_gen.L/2)**2 
+                - 
+                (j_index_matrix[circle_left_border]*self.delta - self.temp_eq_gen.h)**2
+            )
+        ) / self.delta
+        horizontal_irregular = g < 1 # when g is NaN is not irregular
+        g = g[horizontal_irregular]
+
+        dtdy[circle_left_border][vertical_irregular] = (
+            b**2*top_neighbors[circle_left_border][vertical_irregular] 
+            + 
+            self.temp_matrix[circle_left_border][vertical_irregular]*(1-b**2)
+            -
+            self.temp_eq_gen.T_inside
+        ) / (
+            self.delta * b * (1 + b)
+        )
+
+        dtdx[circle_left_border][horizontal_irregular] = (
+            self.temp_eq_gen.T_inside 
+            -
+            g**2*right_neighbors[circle_left_border][horizontal_irregular] 
+            -
+            self.temp_matrix[circle_left_border][horizontal_irregular]*(1-g**2)
+            
+        ) / (
+            self.delta * g * (1 + g)
+        )
+
+        ## Now for the right circle
+
+        g = (
+           i_index_matrix[circle_right_border]*self.delta
+            -
+            self.temp_eq_gen.d 
+            - 
+            self.temp_eq_gen.L/2 
+            -
+            np.sqrt(
+                (self.temp_eq_gen.L/2)**2 
+                - 
+                (j_index_matrix[circle_right_border]*self.delta - self.temp_eq_gen.h)**2
+            )
+        ) / self.delta
+        horizontal_irregular = g < 1 # when g is NaN is not irregular
+
+        b = (
+            j_index_matrix[circle_right_border]*self.delta
+            -
+            self.temp_eq_gen.h
+            -
+            np.sqrt(
+                (self.temp_eq_gen.L/2)**2
+                -
+                (
+                    self.temp_eq_gen.d 
+                    + 
+                    self.temp_eq_gen.L/2 
+                    - 
+                   i_index_matrix[circle_right_border]*self.delta
+                )**2
+            )
+        ) / self.delta
+        vertical_irregular = b < 1 # when b is NaN is not irregular
+
+        right_circle_y_border_temp = (
+            (
+                (j_index_matrix[circle_right_border]*self.delta - self.temp_eq_gen.delta * b) 
+                >
+                (self.temp_eq_gen.h + self.temp_eq_gen.L/2 * np.sin(np.pi/3))
+            ) * self.temp_eq_gen.T_inside
+            +
+            (
+                (i_index_matrix[circle_right_border]*self.delta - self.delta * g) 
+                >=
+                (self.temp_eq_gen.d + self.temp_eq_gen.L/2 + self.temp_eq_gen.L/2 * np.cos(np.pi/3)) 
+            ) * self.temp_eq_gen.T_motor
+        )
+
+        right_circle_x_border_temp = (
+            (
+                (i_index_matrix[circle_right_border]*self.delta - self.delta * g) 
+                >
+                (self.temp_eq_gen.d + self.temp_eq_gen.L/2 + self.temp_eq_gen.L/2 * np.cos(np.pi/3))
+            ) * self.temp_eq_gen.T_motor
+            +
+            (
+                (i_index_matrix[circle_right_border]*self.delta - self.delta * g) 
+                <=
+                (self.temp_eq_gen.d + self.temp_eq_gen.L/2 + self.temp_eq_gen.L/2 * np.cos(np.pi/3))
+            ) * self.temp_eq_gen.T_inside
+        )
+
+        b = b[vertical_irregular]
+        g = g[horizontal_irregular]
+
+        dtdy[circle_right_border][vertical_irregular] = (
+            b**2*top_neighbors[circle_right_border][vertical_irregular] 
+            + 
+            self.temp_matrix[circle_right_border][vertical_irregular]*(1-b**2)
+            -
+            right_circle_y_border_temp[vertical_irregular]
+        ) / (
+            self.delta * b * (1 + b)
+        )
+
+        dtdx[circle_right_border][horizontal_irregular] = (
+            g**2*right_neighbors[circle_right_border][horizontal_irregular] 
+            +
+            self.temp_matrix[circle_right_border][horizontal_irregular]*(1-g**2)
+            -
+            right_circle_x_border_temp[horizontal_irregular]
+            
+        ) / (
+            self.delta * g * (1 + g)
+        )
+
+        dtdy[circle_bottom_border] = 0
+        dtdx[circle_bottom_border] = (right_neighbors[circle_bottom_border] - left_neighbors[circle_bottom_border])/(2*self.delta)
+
+        dtdx[self.temp_eq_gen.inside_circle] = 0
+        dtdy[self.temp_eq_gen.inside_circle] = 0
+
+        return (dtdx, dtdy)
+
+    def calculate_heat_on_circle(self):
+        circle_border_x_values = self.temp_eq_gen.i_index_matrix[self.temp_eq_gen.circle_border]*self.delta
+        circle_border_y_values = self.temp_eq_gen.j_index_matrix[self.temp_eq_gen.circle_border]*self.delta
+
+        circle_border_dtdx_values = self.dtdx[self.temp_eq_gen.circle_border]
+        circle_border_dtdy_values = self.dtdy[self.temp_eq_gen.circle_border]
+
+        circle_border_angles = np.arctan2(circle_border_y_values - self.temp_eq_gen.h, circle_border_x_values - self.temp_eq_gen.d - self.temp_eq_gen.L/2)
+
+        sorted_angles_indexes = np.argsort(circle_border_angles)
+        
+        sorted_dtdx_values = circle_border_dtdx_values[sorted_angles_indexes]
+        sorted_dtdy_values = circle_border_dtdy_values[sorted_angles_indexes]
+
+        mean_dtdx_values = (sorted_dtdx_values[1:] + sorted_dtdx_values[:-1])/2
+        mean_dtdy_values = (sorted_dtdy_values[1:] + sorted_dtdy_values[:-1])/2
+
+        delta_angles = circle_border_angles[sorted_angles_indexes][1:] - circle_border_angles[sorted_angles_indexes][:-1]
+        mean_angles = (circle_border_angles[sorted_angles_indexes][1:] + circle_border_angles[sorted_angles_indexes][:-1])/2
+
+        heat_on_circle_x = -np.sum(self.temp_eq_gen.L/2 * delta_angles * self.fusca_width * mean_dtdx_values * np.cos(mean_angles)) * self.k
+        heat_on_circle_y = -np.sum(self.temp_eq_gen.L/2 * delta_angles * self.fusca_width * mean_dtdy_values * np.sin(mean_angles)) * self.k
+
+        print(f"Heat on circle is {heat_on_circle_x + heat_on_circle_y}")
+
+
+
+
